@@ -79,11 +79,6 @@ function runMigrations(db: Database.Database) {
     );
   `);
 
-  // epa_co2 column migrations
-  const epaCols = (db.prepare("PRAGMA table_info(epa_co2)").all() as { name: string }[]).map(c => c.name);
-  if (!epaCols.includes('zion_score'))   db.exec("ALTER TABLE epa_co2 ADD COLUMN zion_score REAL");
-  if (!epaCols.includes('partial_zion')) db.exec("ALTER TABLE epa_co2 ADD COLUMN partial_zion INTEGER DEFAULT 1");
-
   // Column migrations
   const cols = (db.prepare("PRAGMA table_info(vehicles)").all() as { name: string }[]).map(c => c.name);
   if (!cols.includes('invoice_number'))    db.exec("ALTER TABLE vehicles ADD COLUMN invoice_number TEXT");
@@ -139,4 +134,9 @@ function runMigrations(db: Database.Database) {
     );
     CREATE INDEX IF NOT EXISTS idx_degem_kinuy ON degem_cache(kinuy_mishari);
   `);
+
+  // epa_co2 column migrations (must run after table creation)
+  const epaCols = (db.prepare("PRAGMA table_info(epa_co2)").all() as { name: string }[]).map(c => c.name);
+  if (!epaCols.includes('zion_score'))   db.exec("ALTER TABLE epa_co2 ADD COLUMN zion_score REAL");
+  if (!epaCols.includes('partial_zion')) db.exec("ALTER TABLE epa_co2 ADD COLUMN partial_zion INTEGER DEFAULT 1");
 }
