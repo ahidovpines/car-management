@@ -43,6 +43,92 @@ export async function fetchTracking(container: string): Promise<TrackingResult |
   }
 }
 
+// TrackingMore fallback — used when findteu has no data (e.g., ZIM B/L numbers)
+export async function fetchTrackingMore(
+  trackingNumber: string,
+  courierCode = 'zim',
+): Promise<TrackingResult | null> {
+  const apiKey = process.env.TRACKINGMORE_API_KEY;
+  if (!apiKey || !trackingNumber) return null;
+
+  try {
+    // Try to get existing tracking first; create it if not found
+    const getRes = await fetch(
+      `https://api.trackingmore.com/v4/trackings/${courierCode}/${encodeURIComponent(trackingNumber)}`,
+      {
+        headers: { 'Tracking-Api-Key': apiKey, Accept: 'application/json' },
+        signal: AbortSignal.timeout(15000),
+      },
+    );
+
+    let data: Record<string, unknown> | null = null;
+
+    if (getRes.ok) {
+      const json = await getRes.json() as Record<string, unknown>;
+      data = (json?.data ?? json) as Record<string, unknown>;
+    }
+
+    // If not found (404 or empty), create the tracking entry first
+    if (!data || getRes.status === 404) {
+      const createRes = await fetch('https://api.trackingmore.com/v4/trackings/create', {
+        method: 'POST',
+        headers: {
+          'Tracking-Api-Key': apiKey,
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+        body: JSON.stringify({ tracking_number: trackingNumber, courier_code: courierCode }),
+        signal: AbortSignal.timeout(15000),
+      });
+
+      if (!createRes.ok) {
+        console.error('trackingmore create error:', createRes.status);
+        return null;
+      }
+      const created = await createRes.json() as Record<string, unknown>;
+      data = (created?.data ?? created) as Record<string, unknown>;
+    }
+
+    if (!data) return null;
+    return parseTrackingMore(data);
+  } catch (e) {
+    console.error('trackingmore fetch error:', e);
+    return null;
+  }
+}
+
+function parseTrackingMore(d: Record<string, unknown>): TrackingResult | null {
+  if (!d) return null;
+
+  type TMEvent = {
+    tracking_detail?: string;
+    location?: string;
+    tracking_time?: string;
+  };
+
+  const rawEvents = (d.origin_info as { trackinfo?: TMEvent[] })?.trackinfo ?? [];
+  const events: TrackingEvent[] = rawEvents.map((e: TMEvent) => ({
+    date: formatDate(e.tracking_time ?? ''),
+    location: e.location ?? '',
+    description: e.tracking_detail ?? '',
+  })).filter((e: TrackingEvent) => e.description);
+
+  const latest = rawEvents[0];
+  const etaRaw = String(d.expected_delivery ?? d.estimated_delivery_date ?? '');
+
+  return {
+    status: String(d.latest_event ?? latest?.tracking_detail ?? d.tag ?? ''),
+    location: String(d.latest_checkpoint_location ?? latest?.location ?? d.destination_country ?? ''),
+    eta: etaRaw ? formatDate(etaRaw) : undefined,
+    eta_raw: etaRaw || undefined,
+    vessel: String(d.ship_name ?? d.vessel_name ?? ''),
+    from: String(d.origin_country ?? ''),
+    departure: undefined,
+    completed: d.tag === 'Delivered',
+    events: events.slice(0, 12),
+  };
+}
+
 function parseFindTEU(raw: Record<string, unknown>): TrackingResult | null {
   // Response: { success, data: { pol, pod, container, events, ... } }
   const d = (raw?.data ?? raw) as Record<string, unknown>;
@@ -75,18 +161,18 @@ function parseFindTEU(raw: Record<string, unknown>): TrackingResult | null {
     type: e.event_type ?? '',
   })).filter(e => e.description);
 
-  // Most recent actual event
+  // Most recent actual event, fall back to most recent expected event
   const actualEvents = rawEvents.filter(e => e.event_type === 'actual');
-  const recentEvent = actualEvents[actualEvents.length - 1];
+  const recentEvent = actualEvents[actualEvents.length - 1]
+    ?? rawEvents.filter(e => e.event_type === 'expected')[0];
   const recentLocation = recentEvent?.location
     ? [recentEvent.location.port, recentEvent.location.country].filter(Boolean).join(', ')
     : '';
   const recentAction = recentEvent?.action?.action_name ?? '';
 
-  // Active vessel from most recent loaded/departed event
-  const vesselEvent = [...rawEvents].reverse().find(
-    e => e.mode?.vessel?.vessel_name && e.event_type === 'actual'
-  );
+  // Active vessel — actual first, then expected
+  const vesselEvent = [...rawEvents].reverse().find(e => e.mode?.vessel?.vessel_name && e.event_type === 'actual')
+    ?? rawEvents.find(e => e.mode?.vessel?.vessel_name);
   const vessel = vesselEvent?.mode?.vessel?.vessel_name ?? '';
 
   return {

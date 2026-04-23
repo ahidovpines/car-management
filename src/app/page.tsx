@@ -16,16 +16,18 @@ function AlertsSection({ alerts }: { alerts: Alert[] }) {
     <div className="space-y-2">
       {visible.map((alert, i) => (
         <Link key={i} href={`/vehicles/${alert.vehicle_id}`}>
-          <div className={`flex items-center gap-3 p-3.5 rounded-xl bg-white shadow-sm border border-gray-100 text-sm cursor-pointer hover:shadow-md transition-all border-r-4 ${
+          <div className={`flex items-start gap-3 p-3.5 rounded-xl bg-white shadow-sm border border-gray-100 text-sm cursor-pointer hover:shadow-md transition-all border-r-4 ${
             alert.severity === 'critical' ? 'border-r-red-500' :
             alert.severity === 'warning'  ? 'border-r-orange-400' :
                                             'border-r-yellow-400'}`}>
-            <AlertTriangle className={`w-4 h-4 flex-shrink-0 ${
+            <AlertTriangle className={`w-4 h-4 flex-shrink-0 mt-0.5 ${
               alert.severity === 'critical' ? 'text-red-500' :
               alert.severity === 'warning'  ? 'text-orange-400' : 'text-yellow-500'
             }`} />
-            <span className="font-semibold text-gray-900">{alert.vehicle_name}</span>
-            <span className="text-gray-500">{alert.message}</span>
+            <div className="min-w-0">
+              <span className="font-semibold text-gray-900 block truncate">{alert.vehicle_name}</span>
+              <span className="text-gray-500 text-xs">{alert.message}</span>
+            </div>
           </div>
         </Link>
       ))}
@@ -86,6 +88,7 @@ function VehicleRow({ v }: { v: VehicleWithMeta }) {
           <div className="min-w-0">
             <div className="font-bold text-gray-900 text-sm truncate">{v.make} {v.model}</div>
             <div className="flex items-center gap-2 flex-wrap mt-0.5">
+              {v.vin && <span className="text-[11px] font-mono text-gray-400 truncate max-w-[140px]">{v.vin}</span>}
               {v.assigned_to && <span className="text-[11px] text-blue-500 font-medium">{v.assigned_to}</span>}
               {v.eta && <span className="text-[11px] text-gray-400">ETA: {v.eta.split('-').reverse().join('/')}</span>}
             </div>
@@ -130,7 +133,7 @@ function VehicleRow({ v }: { v: VehicleWithMeta }) {
         </div>
         <StageBar status={v.status} />
         <div className="text-sm text-center">
-          {v.eta ? <span className="font-semibold text-blue-700">{v.eta.split('-').reverse().join('/')}</span> : <span className="text-gray-300">—</span>}
+          {v.eta && v.status !== 'הגיע' ? <span className="font-semibold text-blue-700">{v.eta.split('-').reverse().join('/')}</span> : <span className="text-gray-300">—</span>}
         </div>
         <div className="text-sm text-center">
           {daysReg !== null
@@ -203,6 +206,13 @@ export default function Dashboard() {
   const [licenseTab, setLicenseTab] = useState<LicenseTab>('הכל');
   const [syncing, setSyncing] = useState(false);
   const [syncResult, setSyncResult] = useState<string | null>(null);
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768);
+    check();
+    window.addEventListener('resize', check);
+    return () => window.removeEventListener('resize', check);
+  }, []);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -255,29 +265,31 @@ export default function Dashboard() {
   ];
 
   return (
-    <div className="min-h-screen bg-[#f0f2f7]">
-      <header className="bg-white border-b border-gray-200 px-4 md:px-8 py-4 sticky top-0 z-10 shadow-sm">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <Image src="/logo.jpg" alt="A.P Trade Cars" width={120} height={48} className="object-contain" />
-          <div className="flex items-center gap-2">
-            {syncResult && (
-              <span className="text-xs text-gray-500 bg-gray-100 px-3 py-1.5 rounded-lg font-medium">{syncResult}</span>
+    <div className="min-h-screen bg-[#f0f2f7] overflow-x-hidden">
+      <header className="bg-white border-b border-gray-200 px-4 md:px-8 py-3 sticky top-0 z-10 shadow-sm">
+        <div className="max-w-7xl mx-auto flex items-center justify-between gap-2">
+          <Image src="/logo.jpg" alt="A.P Trade Cars" width={100} height={40} className="object-contain flex-shrink-0" />
+          <div className="flex items-center gap-1.5">
+            {!isMobile && syncResult && (
+              <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-lg font-medium">{syncResult}</span>
             )}
-            <button onClick={syncAll} disabled={syncing}
-              className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-gray-600 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 disabled:opacity-50 shadow-sm">
-              <Ship className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`} />
-              {syncing ? 'מסנכרן...' : 'סנכרן הכל'}
+            <button onClick={syncAll} disabled={syncing} title="סנכרן הכל"
+              className="flex items-center gap-1.5 px-2.5 py-2 text-sm font-medium text-gray-600 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 disabled:opacity-50 shadow-sm">
+              <Ship className={`w-4 h-4 flex-shrink-0 ${syncing ? 'animate-spin' : ''}`} />
+              {!isMobile && (syncing ? 'מסנכרן...' : 'סנכרן הכל')}
             </button>
-            <button onClick={load} className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100">
+            <button onClick={load} title="רענן" className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100">
               <RefreshCw className="w-4 h-4" />
             </button>
-            <Link href="/calculator"
-              className="flex items-center gap-2 bg-white border border-gray-200 text-gray-700 px-3 py-2 rounded-xl hover:bg-gray-50 text-sm font-medium shadow-sm">
-              <Calculator className="w-4 h-4 text-blue-500" /> מחשבון
+            <Link href="/calculator" title="מחשבון"
+              className="flex items-center gap-1.5 px-2.5 py-2 bg-white border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 text-sm font-medium shadow-sm">
+              <Calculator className="w-4 h-4 text-blue-500" />
+              {!isMobile && 'מחשבון'}
             </Link>
-            <Link href="/vehicles/new"
-              className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-xl hover:bg-blue-700 text-sm font-semibold shadow-sm">
-              <Plus className="w-4 h-4" /> הוסף רכב
+            <Link href="/vehicles/new" title="הוסף רכב"
+              className="flex items-center gap-1.5 bg-blue-600 text-white px-3 py-2 rounded-xl hover:bg-blue-700 text-sm font-semibold shadow-sm">
+              <Plus className="w-4 h-4" />
+              {!isMobile && 'הוסף רכב'}
             </Link>
           </div>
         </div>
@@ -302,28 +314,28 @@ export default function Dashboard() {
           ))}
         </div>
 
-        {/* Search + License tabs */}
-        <div className="flex items-center justify-between gap-4">
-          <div className="flex gap-1 bg-white border border-gray-200 rounded-xl p-1 shadow-sm">
+        {/* Search + License tabs — filter tabs on right (first in RTL flow) */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+          <div className="flex gap-1 bg-white border border-gray-200 rounded-xl p-1 shadow-sm self-start sm:self-auto flex-shrink-0">
             {(['הכל', 'זעיר', 'עקיף'] as LicenseTab[]).map(tab => (
               <button key={tab} onClick={() => setLicenseTab(tab)}
-                className={`px-4 py-1.5 rounded-lg text-sm font-semibold transition-all ${
+                className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-all ${
                   licenseTab === tab
                     ? tab === 'זעיר' ? 'bg-blue-600 text-white shadow-sm'
                       : tab === 'עקיף' ? 'bg-amber-500 text-white shadow-sm'
                       : 'bg-gray-800 text-white shadow-sm'
                     : 'text-gray-500 hover:text-gray-700'
                 }`}>
-                {tab === 'זעיר' ? `🔵 זעיר (${pipelineZeirCount})` :
-                 tab === 'עקיף' ? `🟡 עקיף (${pipelineAkifCount})` : 'הכל'}
+                {tab === 'זעיר' ? `זעיר (${pipelineZeirCount})` :
+                 tab === 'עקיף' ? `עקיף (${pipelineAkifCount})` : 'הכל'}
               </button>
             ))}
           </div>
-          <div className="relative">
+          <div className="relative sm:w-72 w-full">
             <Search className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" />
             <input type="text" placeholder="חיפוש לפי שם, VIN, B/L, דילר..."
               value={search} onChange={e => setSearch(e.target.value)}
-              className="pr-9 pl-4 py-2.5 border border-gray-200 rounded-xl text-sm w-72 focus:outline-none focus:ring-2 focus:ring-blue-300 bg-white shadow-sm" />
+              className="w-full pr-9 pl-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-300 bg-white shadow-sm" />
           </div>
         </div>
 

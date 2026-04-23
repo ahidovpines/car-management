@@ -79,6 +79,11 @@ function runMigrations(db: Database.Database) {
     );
   `);
 
+  // epa_co2 column migrations
+  const epaCols = (db.prepare("PRAGMA table_info(epa_co2)").all() as { name: string }[]).map(c => c.name);
+  if (!epaCols.includes('zion_score'))   db.exec("ALTER TABLE epa_co2 ADD COLUMN zion_score REAL");
+  if (!epaCols.includes('partial_zion')) db.exec("ALTER TABLE epa_co2 ADD COLUMN partial_zion INTEGER DEFAULT 1");
+
   // Column migrations
   const cols = (db.prepare("PRAGMA table_info(vehicles)").all() as { name: string }[]).map(c => c.name);
   if (!cols.includes('invoice_number'))    db.exec("ALTER TABLE vehicles ADD COLUMN invoice_number TEXT");
@@ -107,12 +112,31 @@ function runMigrations(db: Database.Database) {
       label     TEXT    NOT NULL
     );
     CREATE TABLE IF NOT EXISTS epa_co2 (
-      vehicle_id  TEXT PRIMARY KEY,
-      co2gkm      INTEGER NOT NULL,
-      green_group INTEGER NOT NULL,
-      make        TEXT,
-      model       TEXT,
-      year        INTEGER
+      vehicle_id   TEXT PRIMARY KEY,
+      co2gkm       INTEGER NOT NULL,
+      green_group  INTEGER NOT NULL,
+      zion_score   REAL,
+      partial_zion INTEGER DEFAULT 1,
+      make         TEXT,
+      model        TEXT,
+      year         INTEGER
     );
+
+    CREATE TABLE IF NOT EXISTS degem_cache (
+      id           INTEGER PRIMARY KEY AUTOINCREMENT,
+      tozeret_nm   TEXT,
+      kinuy_mishari TEXT NOT NULL,
+      shnat_yitzur INTEGER NOT NULL,
+      madad_yarok  INTEGER,
+      kvutzat_zihum INTEGER,
+      co2_wltp     REAL,
+      nox_wltp     REAL,
+      hc_wltp      REAL,
+      pm_wltp      REAL,
+      co_wltp      REAL,
+      fetched_at   TEXT DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(kinuy_mishari, shnat_yitzur, tozeret_nm)
+    );
+    CREATE INDEX IF NOT EXISTS idx_degem_kinuy ON degem_cache(kinuy_mishari);
   `);
 }

@@ -3,12 +3,13 @@
 import { useState, useMemo, useEffect, useCallback, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowRight, Calculator, Info, RefreshCw, Search, CheckCircle2 } from 'lucide-react';
+import { ArrowRight, Calculator, Info, RefreshCw, Search, CheckCircle2, Leaf } from 'lucide-react';
 import {
   calculateImportTax,
   ENGINE_TYPES,
   GREEN_GROUPS,
   formatILS,
+  zionToGroupIdx,
 } from '@/lib/taxCalculator';
 
 function NumInput({
@@ -77,11 +78,54 @@ function CalculatorInner() {
   const [consumerPrice, setConsumerPrice] = useState('');
   const [hasOrigin, setHasOrigin] = useState(false);
   const [engineIdx, setEngineIdx] = useState(0);
-  const [greenIdx, setGreenIdx] = useState(3);
+  const [greenIdx, setGreenIdx] = useState(12); // default: group 13 (ציון 211–220, zero adjustment)
   const [vehicleType, setVehicleType] = useState<'m1' | 'n2'>('m1');
   const [weightCategory, setWeightCategory] = useState<'under_3500' | 'between_3500_4500' | 'over_4500'>('under_3500');
 
-  // EPA vehicle lookup
+  // Israeli degem lookup (data.gov.il — primary, accurate)
+  type DegemResult = {
+    tozeret_nm: string; kinuy_mishari: string; shnat_yitzur: number;
+    madad_yarok: number | null; kvutzat_zihum: number | null;
+    co2_wltp: number | null; nox_wltp: number | null;
+  };
+  const [degemQ, setDegemQ] = useState('');
+  const [degemYear, setDegemYear] = useState('');
+  const [degemResults, setDegemResults] = useState<DegemResult[]>([]);
+  const [degemLoading, setDegemLoading] = useState(false);
+  const [degemError, setDegemError] = useState<string | null>(null);
+  const [degemSelected, setDegemSelected] = useState<DegemResult | null>(null);
+
+  const searchDegem = useCallback(async (q: string, year: string) => {
+    if (q.length < 2) return;
+    setDegemLoading(true); setDegemError(null); setDegemResults([]);
+    try {
+      const params = new URLSearchParams({ q });
+      if (year) params.set('year', year);
+      const r = await fetch(`/api/degem-lookup?${params}`);
+      const data = await r.json();
+      if (Array.isArray(data)) {
+        setDegemResults(data);
+        if (data.length === 0) setDegemError('לא נמצאו תוצאות');
+      } else {
+        setDegemError(data?.error || 'שגיאה בחיפוש');
+      }
+    } catch (e) {
+      setDegemError(String(e));
+    } finally {
+      setDegemLoading(false);
+    }
+  }, []);
+
+  const applyDegemResult = useCallback((rec: DegemResult) => {
+    setDegemSelected(rec);
+    if (rec.madad_yarok != null) {
+      setGreenIdx(zionToGroupIdx(rec.madad_yarok));
+    } else if (rec.kvutzat_zihum != null) {
+      setGreenIdx(rec.kvutzat_zihum - 1);
+    }
+  }, []);
+
+  // EPA vehicle lookup (fallback for non-Israeli-registered models)
   const currentYear = new Date().getFullYear();
   const years = Array.from({ length: 15 }, (_, i) => currentYear - i);
   const [lookupYear, setLookupYear] = useState(String(currentYear));
@@ -91,7 +135,7 @@ function CalculatorInner() {
   const [makes, setMakes] = useState<string[]>([]);
   const [models, setModels] = useState<string[]>([]);
   const [options, setOptions] = useState<{ id: string; label: string }[]>([]);
-  const [lookupResult, setLookupResult] = useState<{ co2gkm: number; group: number } | null>(null);
+  const [lookupResult, setLookupResult] = useState<{ co2gkm: number; group: number; zion: number | null; partial: boolean } | null>(null);
   const [lookupLoading, setLookupLoading] = useState(false);
   const [lookupError, setLookupError] = useState<string | null>(null);
 
@@ -137,8 +181,8 @@ function CalculatorInner() {
       const r = await fetch(`/api/vehicle-lookup?action=co2&id=${id}`);
       const data = await r.json();
       if (data.group) {
-        setLookupResult({ co2gkm: data.co2gkm, group: data.group });
-        setGreenIdx(data.group - 1);
+        setLookupResult({ co2gkm: data.co2gkm, group: data.group, zion: data.zion ?? null, partial: !!data.partial });
+        setGreenIdx(data.zion != null ? zionToGroupIdx(data.zion) : data.group - 1);
       }
     } finally {
       setLookupLoading(false);
@@ -340,10 +384,78 @@ function CalculatorInner() {
 
               {vehicleType === 'm1' && (
                 <div className="space-y-3">
+                  {/* ── Israeli degem lookup ── */}
+                  <div className="bg-green-50 border border-green-200 rounded-2xl p-4 space-y-3">
+                    <label className="flex items-center gap-2 text-sm font-semibold text-green-800">
+                      <Leaf className="w-4 h-4 text-green-600" />
+                      חיפוש ציון ירוק — מאגר משרד התחבורה
+                    </label>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={degemQ}
+                        onChange={e => setDegemQ(e.target.value)}
+                        onKeyDown={e => e.key === 'Enter' && searchDegem(degemQ, degemYear)}
+                        placeholder="שם מסחרי באנגלית (GLC 300, Camry...)"
+                        className="flex-1 border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-green-500"
+                      />
+                      <input
+                        type="number"
+                        value={degemYear}
+                        onChange={e => setDegemYear(e.target.value)}
+                        placeholder="שנה"
+                        className="w-20 border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-green-500"
+                      />
+                      <button
+                        onClick={() => searchDegem(degemQ, degemYear)}
+                        disabled={degemLoading || degemQ.length < 2}
+                        className="flex items-center gap-1 px-3 py-2 bg-green-600 text-white rounded-xl text-sm font-medium hover:bg-green-700 disabled:opacity-40"
+                      >
+                        <Search className="w-4 h-4" />
+                        {degemLoading ? '...' : 'חפש'}
+                      </button>
+                    </div>
+
+                    {degemError && <p className="text-xs text-red-600">{degemError}</p>}
+
+                    {degemResults.length > 0 && !degemSelected && (
+                      <div className="border border-green-200 rounded-xl overflow-hidden bg-white max-h-48 overflow-y-auto">
+                        {degemResults.map((r, i) => (
+                          <button
+                            key={i}
+                            onClick={() => applyDegemResult(r)}
+                            className="w-full text-right px-3 py-2 text-sm hover:bg-green-50 border-b border-gray-100 last:border-0 flex justify-between items-center"
+                          >
+                            <span className="text-gray-700 font-medium">{r.kinuy_mishari} {r.shnat_yitzur}</span>
+                            <span className="text-xs text-gray-400">{r.tozeret_nm}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+
+                    {degemSelected && (
+                      <div className="flex items-start gap-2 bg-white border border-green-300 rounded-xl p-3">
+                        <CheckCircle2 className="w-4 h-4 text-green-600 flex-shrink-0 mt-0.5" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold text-green-800">
+                            {degemSelected.kinuy_mishari} {degemSelected.shnat_yitzur}
+                          </p>
+                          <p className="text-xs text-green-700">
+                            ציון ירוק: <strong>{degemSelected.madad_yarok}</strong> — קבוצה {degemSelected.madad_yarok != null ? GREEN_GROUPS[zionToGroupIdx(degemSelected.madad_yarok)].label : degemSelected.kvutzat_zihum}
+                            {degemSelected.co2_wltp && <span className="mr-2 text-gray-500">CO₂: {degemSelected.co2_wltp} g/km</span>}
+                          </p>
+                        </div>
+                        <button onClick={() => { setDegemSelected(null); setDegemResults([]); setDegemQ(''); }}
+                          className="text-xs text-gray-400 hover:text-gray-600">✕</button>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* ── EPA fallback lookup ── */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
                       <Search className="w-4 h-4 text-blue-500" />
-                      חיפוש ציון ירוק לפי רכב (EPA)
+                      חיפוש חלופי — EPA (רכב אמריקאי)
                     </label>
                     <div className="space-y-2">
                       <select value={lookupYear} onChange={e => { setLookupYear(e.target.value); fetchMakes(e.target.value); }}
@@ -371,13 +483,23 @@ function CalculatorInner() {
                         </select>
                       )}
                       {lookupError && <p className="text-xs text-red-500 bg-red-50 rounded-lg p-2">{lookupError}</p>}
-                    {lookupLoading && <p className="text-xs text-blue-500 text-center">טוען נתוני CO₂...</p>}
+                    {lookupLoading && <p className="text-xs text-blue-500 text-center">טוען נתוני פליטות...</p>}
                       {lookupResult && (
-                        <div className="flex items-center gap-2 bg-green-50 border border-green-200 rounded-xl p-3">
-                          <CheckCircle2 className="w-4 h-4 text-green-600 flex-shrink-0" />
-                          <span className="text-sm text-green-800 font-medium">
-                            {lookupResult.co2gkm} g/km CO₂ — קבוצה {lookupResult.group}
-                          </span>
+                        <div className="bg-green-50 border border-green-200 rounded-xl p-3 space-y-1">
+                          <div className="flex items-center gap-2">
+                            <CheckCircle2 className="w-4 h-4 text-green-600 flex-shrink-0" />
+                            <span className="text-sm text-green-800 font-medium">
+                              {lookupResult.zion != null
+                                ? <>ציון ירוק: <strong>{lookupResult.zion}</strong>{lookupResult.partial ? '*' : ''} — קבוצה {lookupResult.group}</>
+                                : <>{lookupResult.co2gkm} g/km CO₂ — קבוצה {lookupResult.group}</>
+                              }
+                            </span>
+                          </div>
+                          {lookupResult.partial && (
+                            <p className="text-xs text-amber-600 pr-6">
+                              * ציון משוערך לפי CO₂ בלבד — נתוני NOx/HC/CO אינם זמינים ב-EPA. הציון האמיתי עשוי להיות גבוה יותר.
+                            </p>
+                          )}
                         </div>
                       )}
                     </div>
@@ -389,13 +511,13 @@ function CalculatorInner() {
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      ציון ירוק (CO₂ g/km)
+                      קבוצת מיסוי ירוק (ציון ירוק)
                     </label>
                     <select value={greenIdx} onChange={e => { setGreenIdx(Number(e.target.value)); setLookupResult(null); }}
                       className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
                       {GREEN_GROUPS.map((g, i) => (
                         <option key={i} value={i}>
-                          קבוצה {g.group} ({g.co2} CO₂) — {greenGroupLabel(g)}
+                          קבוצה {g.label} (ציון {g.score}) — {greenGroupLabel(g)}
                         </option>
                       ))}
                     </select>
@@ -452,7 +574,7 @@ function CalculatorInner() {
                 <div className="bg-orange-50 border border-orange-200 rounded-2xl p-4 flex gap-3">
                   <Info className="w-4 h-4 text-orange-600 flex-shrink-0 mt-0.5" />
                   <p className="text-xs text-orange-700 leading-relaxed font-medium">
-                    מס יוקרה חל — מחיר צרכני מעל ₪300,000. תוספת: {formatILS(result.luxuryTax)}
+                    מס יוקרה חל ({(result.luxuryRate * 100).toFixed(1)}%) — מחיר צרכני מעל ₪300,000. תוספת: {formatILS(result.luxuryTax)}
                   </p>
                 </div>
               )}
@@ -477,13 +599,13 @@ function CalculatorInner() {
                       />
                       {vehicleType === 'm1' && result.greenAdjustment !== 0 && (
                         <Row
-                          label={`${result.greenAdjustment < 0 ? 'הנחה' : 'תוספת'} ירוקה — קבוצה ${GREEN_GROUPS[greenIdx].group}`}
+                          label={`${result.greenAdjustment < 0 ? 'הנחה' : 'תוספת'} ירוקה — קבוצה ${GREEN_GROUPS[greenIdx].label} (ציון ${GREEN_GROUPS[greenIdx].score})`}
                           value={`${result.greenAdjustment < 0 ? '-' : '+'}${formatILS(Math.abs(result.greenAdjustment))}`}
                         />
                       )}
                       <Row label="מס קנייה לאחר ירוק" value={formatILS(result.purchaseTaxAfterGreen)} bold />
                       {result.luxuryApplies && (
-                        <Row label="מס יוקרה (7.644% על עודף ₪300,000)" value={formatILS(result.luxuryTax)} />
+                        <Row label={`מס יוקרה (${(result.luxuryRate * 100).toFixed(1)}% × בסיס מס קנייה)`} value={formatILS(result.luxuryTax)} />
                       )}
                       {result.luxuryApplies && (
                         <Row label="סה״כ מס קנייה" value={formatILS(result.purchaseTax)} bold />
