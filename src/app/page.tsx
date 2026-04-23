@@ -133,7 +133,7 @@ function VehicleRow({ v }: { v: VehicleWithMeta }) {
         </div>
         <StageBar status={v.status} />
         <div className="text-sm text-center">
-          {v.eta && v.status !== 'הגיע' ? <span className="font-semibold text-blue-700">{v.eta.split('-').reverse().join('/')}</span> : <span className="text-gray-300">—</span>}
+          {v.eta && v.status !== 'הגיע' && v.status !== 'הגיע לארץ' ? <span className="font-semibold text-blue-700">{v.eta.split('-').reverse().join('/')}</span> : <span className="text-gray-300">—</span>}
         </div>
         <div className="text-sm text-center">
           {daysReg !== null
