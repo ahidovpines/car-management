@@ -276,7 +276,7 @@ export default function Dashboard() {
             <button onClick={syncAll} disabled={syncing} title="סנכרן הכל"
               className="flex items-center gap-1.5 px-2.5 py-2 text-sm font-medium text-gray-600 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 disabled:opacity-50 shadow-sm">
               <Ship className={`w-4 h-4 flex-shrink-0 ${syncing ? 'animate-spin' : ''}`} />
-              {!isMobile && (syncing ? 'מסנכרן...' : 'סנכרן הכל')}
+              <span className="header-text">{syncing ? 'מסנכרן...' : 'סנכרן הכל'}</span>
             </button>
             <button onClick={load} title="רענן" className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100">
               <RefreshCw className="w-4 h-4" />
@@ -284,12 +284,12 @@ export default function Dashboard() {
             <Link href="/calculator" title="מחשבון"
               className="flex items-center gap-1.5 px-2.5 py-2 bg-white border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 text-sm font-medium shadow-sm">
               <Calculator className="w-4 h-4 text-blue-500" />
-              {!isMobile && 'מחשבון'}
+              <span className="header-text">מחשבון</span>
             </Link>
             <Link href="/vehicles/new" title="הוסף רכב"
               className="flex items-center gap-1.5 bg-blue-600 text-white px-3 py-2 rounded-xl hover:bg-blue-700 text-sm font-semibold shadow-sm">
               <Plus className="w-4 h-4" />
-              {!isMobile && 'הוסף רכב'}
+              <span className="header-text">הוסף רכב</span>
             </Link>
           </div>
         </div>

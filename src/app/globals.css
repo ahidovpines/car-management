@@ -27,3 +27,7 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: #9ca3af;
 }
+
+@media (max-width: 767px) {
+  .header-text { display: none !important; }
+}
