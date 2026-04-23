@@ -280,7 +280,7 @@ export default function CalculatorPage() {
                   {result.shippingCostILS > 0 && <Row label="משלוח (₪)" value={formatILS(result.shippingCostILS)} />}
                   {result.insuranceCostILS > 0 && <Row label="ביטוח (₪)" value={formatILS(result.insuranceCostILS)} />}
                   <Row label="שווי CIF (₪)" value={formatILS(result.cifValue)} bold />
-                  {result.customsFee > 0 && <Row label={`מכס (${hasOrigin ? '0%' : '7%'})`} value={formatILS(result.customsFee)} />
+                  {result.customsFee > 0 && <Row label={`מכס (${hasOrigin ? '0%' : '7%'})`} value={formatILS(result.customsFee)} />}
                   {parseFloat(local) > 0 && (
                     <Row label="הוצאות מקומיות" value={formatILS(parseFloat(local))} />
                   )}
