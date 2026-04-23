@@ -28,8 +28,8 @@ export interface TaxResult {
   luxuryApplies: boolean;
 }
 
-const LUXURY_THRESHOLD = 302000;
-const LUXURY_RATE = 0.0764;
+const LUXURY_THRESHOLD = 300000;
+const LUXURY_RATE = 0.07644;
 
 export function calculateImportTax(input: TaxInput): TaxResult {
   const vehiclePriceILS = input.vehiclePriceForeign * input.currencyRate;

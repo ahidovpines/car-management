@@ -386,7 +386,7 @@ function CalculatorInner() {
                     value={consumerPrice}
                     onChange={setConsumerPrice}
                     prefix="₪"
-                    hint="לחישוב מס יוקרה — רכב מעל ₪302,000"
+                    hint="לחישוב מס יוקרה — רכב מעל ₪300,000"
                   />
                 </div>
               )}
@@ -432,7 +432,7 @@ function CalculatorInner() {
                 <div className="bg-orange-50 border border-orange-200 rounded-2xl p-4 flex gap-3">
                   <Info className="w-4 h-4 text-orange-600 flex-shrink-0 mt-0.5" />
                   <p className="text-xs text-orange-700 leading-relaxed font-medium">
-                    מס יוקרה חל — מחיר צרכני מעל ₪302,000. תוספת: {formatILS(result.luxuryTax)}
+                    מס יוקרה חל — מחיר צרכני מעל ₪300,000. תוספת: {formatILS(result.luxuryTax)}
                   </p>
                 </div>
               )}
@@ -463,7 +463,7 @@ function CalculatorInner() {
                       )}
                       <Row label="מס קנייה לאחר ירוק" value={formatILS(result.purchaseTaxAfterGreen)} bold />
                       {result.luxuryApplies && (
-                        <Row label="מס יוקרה (7.64% על עודף ₪302,000)" value={formatILS(result.luxuryTax)} />
+                        <Row label="מס יוקרה (7.644% על עודף ₪300,000)" value={formatILS(result.luxuryTax)} />
                       )}
                       {result.luxuryApplies && (
                         <Row label="סה״כ מס קנייה" value={formatILS(result.purchaseTax)} bold />
