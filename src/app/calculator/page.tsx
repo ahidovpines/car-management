@@ -96,20 +96,29 @@ function CalculatorInner() {
 
   const fetchMakes = useCallback(async (year: string) => {
     setMakes([]); setModels([]); setOptions([]); setLookupMake(''); setLookupModel(''); setLookupOptionId('');
-    const r = await fetch(`/api/vehicle-lookup?action=makes&year=${year}`);
-    setMakes(await r.json());
+    try {
+      const r = await fetch(`/api/vehicle-lookup?action=makes&year=${year}`);
+      const data = await r.json();
+      setMakes(Array.isArray(data) ? data : []);
+    } catch { setMakes([]); }
   }, []);
 
   const fetchModels = useCallback(async (year: string, make: string) => {
     setModels([]); setOptions([]); setLookupModel(''); setLookupOptionId('');
-    const r = await fetch(`/api/vehicle-lookup?action=models&year=${year}&make=${encodeURIComponent(make)}`);
-    setModels(await r.json());
+    try {
+      const r = await fetch(`/api/vehicle-lookup?action=models&year=${year}&make=${encodeURIComponent(make)}`);
+      const data = await r.json();
+      setModels(Array.isArray(data) ? data : []);
+    } catch { setModels([]); }
   }, []);
 
   const fetchOptions = useCallback(async (year: string, make: string, model: string) => {
     setOptions([]); setLookupOptionId('');
-    const r = await fetch(`/api/vehicle-lookup?action=options&year=${year}&make=${encodeURIComponent(make)}&model=${encodeURIComponent(model)}`);
-    setOptions(await r.json());
+    try {
+      const r = await fetch(`/api/vehicle-lookup?action=options&year=${year}&make=${encodeURIComponent(make)}&model=${encodeURIComponent(model)}`);
+      const data = await r.json();
+      setOptions(Array.isArray(data) ? data : []);
+    } catch { setOptions([]); }
   }, []);
 
   const fetchCo2 = useCallback(async (id: string) => {

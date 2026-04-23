@@ -48,8 +48,9 @@ export async function GET(request: Request) {
       if (cached.length > 0) return NextResponse.json(cached.map(r => r.make));
 
       const data = await fetchEpa(`/vehicle/menu/make?year=${year}`);
-      const items: string[] = Array.isArray(data?.menuItem) ? data.menuItem : data?.menuItem ? [data.menuItem] : [];
-      const makes = items.map((i: { value: string } | string) => typeof i === 'string' ? i : i.value);
+      const raw = data?.menuItem;
+      const items: { value: string }[] = Array.isArray(raw) ? raw : raw ? [raw] : [];
+      const makes = items.map(i => i.value);
 
       const insert = db.prepare('INSERT OR IGNORE INTO epa_makes (year, make) VALUES (?, ?)');
       const insertAll = db.transaction((list: string[]) => { for (const m of list) insert.run(year, m); });
