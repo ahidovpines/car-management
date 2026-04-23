@@ -157,20 +157,6 @@ export default function CalculatorPage() {
           </Link>
           <Calculator className="w-6 h-6 text-blue-600" />
           <h1 className="text-lg font-bold text-gray-900">מחשבון מיסי ייבוא</h1>
-          <div className="flex bg-gray-100 rounded-xl p-1 gap-1 mr-auto">
-            <button
-              onClick={() => setVehicleType('m1')}
-              className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-all ${vehicleType === 'm1' ? 'bg-white shadow text-blue-700' : 'text-gray-500 hover:text-gray-700'}`}
-            >
-              M1 פרטי
-            </button>
-            <button
-              onClick={() => setVehicleType('n2')}
-              className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-all ${vehicleType === 'n2' ? 'bg-white shadow text-blue-700' : 'text-gray-500 hover:text-gray-700'}`}
-            >
-              N2 מסחרי
-            </button>
-          </div>
         </div>
       </header>
 
@@ -222,7 +208,6 @@ export default function CalculatorPage() {
               </div>
 
               <NumInput label={`עלות משלוח (${currency})`} value={shipping} onChange={setShipping} prefix={currency === 'USD' ? '$' : currency === 'EUR' ? '€' : 'C$'} hint="עלות ה-shipping מחו״ל" />
-              <NumInput label={`עלות ביטוח (${currency})`} value={insurance} onChange={setInsurance} prefix={currency === 'USD' ? '$' : currency === 'EUR' ? '€' : 'C$'} />
               <NumInput label="הוצאות מקומיות (₪)" value={local} onChange={setLocal} prefix="₪" hint="מכונאות, שחרור, בדיקות וכו'" />
             </div>
           </div>
@@ -230,6 +215,21 @@ export default function CalculatorPage() {
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
             <h2 className="font-bold text-gray-800 mb-4 text-base">פרמטרי מיסוי</h2>
             <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">סוג ייבוא</label>
+                <div className="grid grid-cols-2 gap-2">
+                  <label className={`flex flex-col items-center gap-1 p-3 rounded-xl border cursor-pointer transition-colors ${vehicleType === 'm1' ? 'border-blue-400 bg-blue-50' : 'border-gray-200 hover:bg-gray-50'}`}>
+                    <input type="radio" name="vtype" checked={vehicleType === 'm1'} onChange={() => setVehicleType('m1')} className="hidden" />
+                    <span className="text-sm font-bold">M1 פרטי</span>
+                    <span className="text-xs text-gray-400">רכב נוסעים</span>
+                  </label>
+                  <label className={`flex flex-col items-center gap-1 p-3 rounded-xl border cursor-pointer transition-colors ${vehicleType === 'n2' ? 'border-blue-400 bg-blue-50' : 'border-gray-200 hover:bg-gray-50'}`}>
+                    <input type="radio" name="vtype" checked={vehicleType === 'n2'} onChange={() => setVehicleType('n2')} className="hidden" />
+                    <span className="text-sm font-bold">N1/N2 מסחרי</span>
+                    <span className="text-xs text-gray-400">טנדר / משאית</span>
+                  </label>
+                </div>
+              </div>
               {vehicleType === 'm1' && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">מכס</label>
