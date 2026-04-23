@@ -132,12 +132,16 @@ function SectionTable({
       </button>
       {open && (
         <>
-          <div className="grid grid-cols-[2.2fr_1.4fr_1fr_1fr_1fr_1fr_auto] gap-4 px-6 py-2.5 bg-gray-50/70 border-b border-gray-100 text-[11px] font-bold text-gray-400 uppercase tracking-wider">
-            <span>רכב</span><span>VIN</span><span>סטטוס</span>
-            <span>שלב</span><span className="text-center">צפי הגעה</span><span className="text-center">רישום</span><span></span>
-          </div>
-          <div className="divide-y divide-gray-50">
-            {vehicles.map(v => <VehicleRow key={v.id} v={v} />)}
+          <div className="overflow-x-auto">
+            <div className="min-w-[700px]">
+              <div className="grid grid-cols-[2.2fr_1.4fr_1fr_1fr_1fr_1fr_auto] gap-4 px-6 py-2.5 bg-gray-50/70 border-b border-gray-100 text-[11px] font-bold text-gray-400 uppercase tracking-wider">
+                <span>רכב</span><span>VIN</span><span>סטטוס</span>
+                <span>שלב</span><span className="text-center">צפי הגעה</span><span className="text-center">רישום</span><span></span>
+              </div>
+              <div className="divide-y divide-gray-50">
+                {vehicles.map(v => <VehicleRow key={v.id} v={v} />)}
+              </div>
+            </div>
           </div>
         </>
       )}
@@ -207,7 +211,7 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-[#f0f2f7]">
-      <header className="bg-white border-b border-gray-200 px-8 py-4 sticky top-0 z-10 shadow-sm">
+      <header className="bg-white border-b border-gray-200 px-4 md:px-8 py-4 sticky top-0 z-10 shadow-sm">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <Image src="/logo.jpg" alt="A.P Trade Cars" width={120} height={48} className="object-contain" />
           <div className="flex items-center gap-2">
@@ -230,12 +234,12 @@ export default function Dashboard() {
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-8 py-6 space-y-5">
+      <main className="max-w-7xl mx-auto px-4 md:px-8 py-6 space-y-5">
 
         {alerts.length > 0 && <AlertsSection alerts={alerts} />}
 
         {/* Stats */}
-        <div className="grid grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {stats.map(s => (
             <div key={s.label} className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm flex items-center gap-4">
               <div className={`w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 ${s.iconBg}`}>
