@@ -8,14 +8,6 @@
 
 body {
   font-family: 'Inter', Arial, Helvetica, sans-serif;
-  overflow-x: hidden;
-  max-width: 100%;
-  position: relative;
-}
-
-html {
-  overflow-x: hidden;
-  max-width: 100%;
 }
 
 ::-webkit-scrollbar {

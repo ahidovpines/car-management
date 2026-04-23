@@ -270,7 +270,7 @@ export default function Dashboard() {
   ];
 
   return (
-    <div className="min-h-screen bg-[#f0f2f7] overflow-x-hidden">
+    <div className="min-h-screen bg-[#f0f2f7]">
       <header className="bg-white border-b border-gray-200 px-4 md:px-8 py-3 sticky top-0 z-10 shadow-sm">
         <div className="max-w-7xl mx-auto flex items-center justify-between gap-2">
           <Image src="/logo.jpg" alt="A.P Trade Cars" width={100} height={40} className="object-contain flex-shrink-0" />
