@@ -79,4 +79,34 @@ function initDb(db: Database.Database) {
   if (!cols.includes('purchase_currency')) db.exec("ALTER TABLE vehicles ADD COLUMN purchase_currency TEXT");
   if (!cols.includes('eta'))               db.exec("ALTER TABLE vehicles ADD COLUMN eta TEXT");
   if (!cols.includes('license_type'))      db.exec("ALTER TABLE vehicles ADD COLUMN license_type TEXT");
+
+  // EPA lookup cache
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS epa_makes (
+      year    INTEGER NOT NULL,
+      make    TEXT    NOT NULL,
+      PRIMARY KEY (year, make)
+    );
+    CREATE TABLE IF NOT EXISTS epa_models (
+      year    INTEGER NOT NULL,
+      make    TEXT    NOT NULL,
+      model   TEXT    NOT NULL,
+      PRIMARY KEY (year, make, model)
+    );
+    CREATE TABLE IF NOT EXISTS epa_options (
+      option_id TEXT PRIMARY KEY,
+      year      INTEGER NOT NULL,
+      make      TEXT    NOT NULL,
+      model     TEXT    NOT NULL,
+      label     TEXT    NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS epa_co2 (
+      vehicle_id  TEXT PRIMARY KEY,
+      co2gkm      INTEGER NOT NULL,
+      green_group INTEGER NOT NULL,
+      make        TEXT,
+      model       TEXT,
+      year        INTEGER
+    );
+  `);
 }
