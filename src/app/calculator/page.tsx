@@ -93,14 +93,24 @@ function CalculatorInner() {
   const [options, setOptions] = useState<{ id: string; label: string }[]>([]);
   const [lookupResult, setLookupResult] = useState<{ co2gkm: number; group: number } | null>(null);
   const [lookupLoading, setLookupLoading] = useState(false);
+  const [lookupError, setLookupError] = useState<string | null>(null);
 
   const fetchMakes = useCallback(async (year: string) => {
     setMakes([]); setModels([]); setOptions([]); setLookupMake(''); setLookupModel(''); setLookupOptionId('');
+    setLookupError(null);
     try {
       const r = await fetch(`/api/vehicle-lookup?action=makes&year=${year}`);
       const data = await r.json();
-      setMakes(Array.isArray(data) ? data : []);
-    } catch { setMakes([]); }
+      if (Array.isArray(data)) {
+        setMakes(data);
+      } else {
+        setLookupError(data?.error || `שגיאה ${r.status}`);
+        setMakes([]);
+      }
+    } catch (e) {
+      setLookupError(String(e));
+      setMakes([]);
+    }
   }, []);
 
   const fetchModels = useCallback(async (year: string, make: string) => {
@@ -360,7 +370,8 @@ function CalculatorInner() {
                           {options.map(o => <option key={o.id} value={o.id}>{o.label}</option>)}
                         </select>
                       )}
-                      {lookupLoading && <p className="text-xs text-blue-500 text-center">טוען נתוני CO₂...</p>}
+                      {lookupError && <p className="text-xs text-red-500 bg-red-50 rounded-lg p-2">{lookupError}</p>}
+                    {lookupLoading && <p className="text-xs text-blue-500 text-center">טוען נתוני CO₂...</p>}
                       {lookupResult && (
                         <div className="flex items-center gap-2 bg-green-50 border border-green-200 rounded-xl p-3">
                           <CheckCircle2 className="w-4 h-4 text-green-600 flex-shrink-0" />

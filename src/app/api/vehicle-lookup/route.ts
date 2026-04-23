@@ -114,6 +114,7 @@ export async function GET(request: Request) {
 
     return NextResponse.json({ error: 'פרמטר action חסר' }, { status: 400 });
   } catch (e) {
+    console.error('[vehicle-lookup] action=%s error=%s', action, e);
     return NextResponse.json({ error: String(e) }, { status: 500 });
   }
 }
