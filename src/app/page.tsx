@@ -62,47 +62,68 @@ function VehicleRow({ v }: { v: VehicleWithMeta }) {
   const trackUrl = getTrackingUrl(v.shipping_company, v.container_number) || v.bl_tracking_url;
 
   return (
-    <Link href={`/vehicles/${v.id}`} className="grid grid-cols-[2.2fr_1.4fr_1fr_1fr_1fr_1fr_auto] gap-4 px-6 py-4 items-center hover:bg-blue-50/40 transition-colors group cursor-pointer">
-      <div className="min-w-0">
-        <div className="flex items-center gap-2.5">
+    <Link href={`/vehicles/${v.id}`} className="block hover:bg-blue-50/40 transition-colors cursor-pointer">
+      {/* Mobile card */}
+      <div className="md:hidden px-4 py-3 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2.5 min-w-0">
           <div className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${STATUS_DOT[v.status] || 'bg-gray-300'}`} />
-          <span className="font-bold text-gray-900 text-[15px] truncate">{v.make} {v.model}</span>
-        </div>
-        <div className="flex items-center gap-2 mt-1 pr-5 flex-wrap">
-          {v.dealer_name && <span className="text-[12px] text-gray-400">{v.dealer_name}</span>}
-          {v.assigned_to && <span className="text-[12px] text-blue-500 font-medium">· {v.assigned_to}</span>}
-        </div>
-        {(v.shipping_company || trackUrl) && (
-          <div className="flex items-center gap-2 mt-0.5 pr-5">
-            {v.shipping_company && <span className="flex items-center gap-1 text-[12px] text-gray-400"><Ship className="w-3 h-3" />{v.shipping_company}</span>}
-            {trackUrl && <a href={trackUrl} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} className="text-[12px] text-blue-400 hover:text-blue-600 flex items-center gap-0.5"><ExternalLink className="w-3 h-3" />מעקב</a>}
+          <div className="min-w-0">
+            <div className="font-bold text-gray-900 text-sm truncate">{v.make} {v.model}</div>
+            <div className="flex items-center gap-2 flex-wrap mt-0.5">
+              {v.assigned_to && <span className="text-[11px] text-blue-500 font-medium">{v.assigned_to}</span>}
+              {v.eta && <span className="text-[11px] text-gray-400">ETA: {v.eta.split('-').reverse().join('/')}</span>}
+            </div>
           </div>
-        )}
+        </div>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <span className={`inline-flex px-2 py-0.5 rounded-full text-[11px] font-semibold ${STATUS_COLORS[v.status] || 'bg-gray-100 text-gray-600'}`}>
+            {v.status}
+          </span>
+          <ChevronLeft className="w-4 h-4 text-gray-300" />
+        </div>
       </div>
-      <div className="font-mono text-[12px] text-gray-600 tracking-wider truncate bg-gray-50 rounded-lg px-2.5 py-2 border border-gray-100">
-        {v.vin || <span className="text-gray-300 font-sans">לא הוזן</span>}
-      </div>
-      <div>
-        <span className={`inline-flex px-2.5 py-1 rounded-full text-[12px] font-semibold ${STATUS_COLORS[v.status] || 'bg-gray-100 text-gray-600'}`}>
-          {v.status}
+
+      {/* Desktop row */}
+      <div className="hidden md:grid grid-cols-[2.2fr_1.4fr_1fr_1fr_1fr_1fr_auto] gap-4 px-6 py-4 items-center group">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2.5">
+            <div className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${STATUS_DOT[v.status] || 'bg-gray-300'}`} />
+            <span className="font-bold text-gray-900 text-[15px] truncate">{v.make} {v.model}</span>
+          </div>
+          <div className="flex items-center gap-2 mt-1 pr-5 flex-wrap">
+            {v.dealer_name && <span className="text-[12px] text-gray-400">{v.dealer_name}</span>}
+            {v.assigned_to && <span className="text-[12px] text-blue-500 font-medium">· {v.assigned_to}</span>}
+          </div>
+          {(v.shipping_company || trackUrl) && (
+            <div className="flex items-center gap-2 mt-0.5 pr-5">
+              {v.shipping_company && <span className="flex items-center gap-1 text-[12px] text-gray-400"><Ship className="w-3 h-3" />{v.shipping_company}</span>}
+              {trackUrl && <a href={trackUrl} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} className="text-[12px] text-blue-400 hover:text-blue-600 flex items-center gap-0.5"><ExternalLink className="w-3 h-3" />מעקב</a>}
+            </div>
+          )}
+        </div>
+        <div className="font-mono text-[12px] text-gray-600 tracking-wider truncate bg-gray-50 rounded-lg px-2.5 py-2 border border-gray-100">
+          {v.vin || <span className="text-gray-300 font-sans">לא הוזן</span>}
+        </div>
+        <div>
+          <span className={`inline-flex px-2.5 py-1 rounded-full text-[12px] font-semibold ${STATUS_COLORS[v.status] || 'bg-gray-100 text-gray-600'}`}>
+            {v.status}
+          </span>
+        </div>
+        <StageBar status={v.status} />
+        <div className="text-sm text-center">
+          {v.eta ? <span className="font-semibold text-blue-700">{v.eta.split('-').reverse().join('/')}</span> : <span className="text-gray-300">—</span>}
+        </div>
+        <div className="text-sm text-center">
+          {daysReg !== null
+            ? <span className={`font-semibold ${daysReg <= 0 ? 'text-red-600' : daysReg <= 14 ? 'text-red-500' : daysReg <= 30 ? 'text-orange-500' : 'text-gray-500'}`}>
+                {daysReg <= 0 ? '⚠ עבר' : `${daysReg}י`}
+              </span>
+            : <span className="text-gray-300">—</span>}
+        </div>
+        <span className="flex items-center gap-1 text-sm text-blue-600 font-semibold opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+          פתח <ChevronLeft className="w-4 h-4" />
         </span>
       </div>
-      <StageBar status={v.status} />
-      <div className="text-sm text-center">
-        {v.eta
-          ? <span className="font-semibold text-blue-700">{v.eta.split('-').reverse().join('/')}</span>
-          : <span className="text-gray-300">—</span>}
-      </div>
-      <div className="text-sm text-center">
-        {daysReg !== null
-          ? <span className={`font-semibold ${daysReg <= 0 ? 'text-red-600' : daysReg <= 14 ? 'text-red-500' : daysReg <= 30 ? 'text-orange-500' : 'text-gray-500'}`}>
-              {daysReg <= 0 ? '⚠ עבר' : `${daysReg}י`}
-            </span>
-          : <span className="text-gray-300">—</span>}
-      </div>
-      <span className="flex items-center gap-1 text-sm text-blue-600 font-semibold opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-        פתח <ChevronLeft className="w-4 h-4" />
-      </span>
     </Link>
   );
 }
