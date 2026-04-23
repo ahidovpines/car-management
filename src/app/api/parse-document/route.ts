@@ -48,19 +48,42 @@ Rules for _doc_type:
 - "coc" if it's a European Certificate of Conformity (COC / Übereinstimmungsbescheinigung) — typically a multi-page German/EU document with fields like "Fahrzeug-Identifizierungsnummer" and "Datum der Herstellung"
 - "other" for anything else
 
-Other rules:
+General rules:
 - For dates use ISO format YYYY-MM-DD.
 - For manufacture_month return a number 1-12.
-- For manufacture_year: 2-digit year "25" → 2025, "24" → 2024.
-- manufacture_month and manufacture_year come ONLY from door/VIN stickers (format MM/YY) or COC documents. Never extract them from invoices — on invoices only extract "year" (model year).
-- On door/VIN stickers the format is MM/YY — split into manufacture_month and manufacture_year.
-- For COC documents (European Certificate of Conformity): vin = field 0.10 "Fahrzeug-Identifizierungsnummer" (17-char code). Manufacture date = "Datum der Herstellung des Fahrzeugs" — may appear as YYYY-MM-DD, DD.MM.YY, or DD.MM.YYYY. Parse it into manufacture_month (number) and manufacture_year (4-digit). Also extract make (field 0.1 Hersteller) and model (field 0.2/0.2.1).
-- The VIN is the 17-character alphanumeric code (Serial #).
-- For supplier invoices: dealer_name = company name at top (letters only, strip leading numbers and hyphens, e.g. "9113-9279 QUEBEC INC." → "QUEBEC INC."), invoice_number = Invoice #, purchase_price = total/subtotal amount as a number, purchase_currency = currency code (CAD/USD/EUR etc).
-- For Israeli import licenses (רישיון יבוא / מסלול יבוא): import_license = מספר האישור (e.g. "1304260102"), import_license_expiry = סיום תוקף האישור in ISO format (e.g. "15/11/2026" → "2026-11-15"). Also extract vin (מספר שלדה), model (from שורות האישור description), dealer_name (שם ספק), manufacture_year (שנת ייצור), manufacture_month (חודש ייצור) from this document type only.
-- For the vehicle model on invoices like "MERCEDES BENZ - CLE53": make = "Mercedes-Benz", model = "CLE53" (just the model code after the dash).
-- port_of_discharge = Final Destination city (e.g. "ASHDOD").
+- For manufacture_year: 2-digit year → add 2000. Examples: "24" → 2024, "25" → 2025, "26" → 2026, "27" → 2027.
+- The VIN is ALWAYS exactly 17 alphanumeric characters (never contains letters I, O, or Q). Read each character very carefully — do not guess or abbreviate. If you cannot confidently read all 17 characters, return null rather than a partial VIN.
 - Look carefully at all text including small print and barcodes.
+
+Bill of Lading (B/L) rules — extract ALL of the following:
+- bl_number: the "BL NO." field (e.g. "MEDURS213714"). NOT the HBL ID or ORDER ID numbers.
+- carrier_booking_no: the "BOOKING NO." field (e.g. "EBKG15925224").
+- container_number: from "CONTAINER NO." or "CONT:" field — the alphanumeric container code (e.g. "MSNU9587692"). Strip any "CONT:" prefix.
+- vessel_name: from "VESSEL / VOYAGE NO." field — include both vessel name and voyage (e.g. "MSC RESILIENT III CG614A").
+- shipping_company: the actual shipping LINE (carrier), not the freight forwarder. Identify from: (1) the vessel name prefix (e.g. "MSC RESILIENT" → "MSC", "EVER" prefix → "Evergreen"), (2) "MASTER: MSC" in the signature block, or (3) the company name on the B/L header logo. Return ONLY one of these exact values: "ZIM", "MSC", "Maersk", "CMA CGM", "Evergreen", "COSCO", "ONE", "Yang Ming". If none match, return null.
+- port_of_loading: from "PORT OF LOADING" field (e.g. "MONTREAL").
+- port_of_discharge: the FINAL delivery city — use "PLACE OF DELIVERY" if present, otherwise "PORT OF DISCHARGE" (e.g. "ASHDOD").
+- release_agent: from "NOTIFY PARTY" — company name only (e.g. "TANKO INTERNATIONAL (97) LTD").
+- vin: 17-char vehicle identification number from goods description (e.g. "W1NKJ4HB4TF563677").
+- make + model + year: from goods description (e.g. "2026 MERCEDES GLC300" → year=2026, make="Mercedes-Benz", model="GLC300").
+
+Door/VIN sticker rules:
+- manufacture_month and manufacture_year come ONLY from door/VIN stickers (format MM/YY) or COC documents. Never from invoices.
+- On door/VIN stickers the format is MM/YY — split into manufacture_month (1-12) and manufacture_year (add 2000).
+- VIN on door stickers appears on the LAST line, often after "GWVR/PNBV" label or below a barcode.
+
+COC rules:
+- vin = field 0.10 "Fahrzeug-Identifizierungsnummer" (17-char). Manufacture date = "Datum der Herstellung des Fahrzeugs". make = field 0.1, model = field 0.2.
+
+Invoice rules:
+- dealer_name = company name (strip leading numbers/hyphens, e.g. "9113-9279 QUEBEC INC." → "QUEBEC INC.").
+- invoice_number = Invoice #, purchase_price = total amount as number, purchase_currency = currency code.
+- For model like "MERCEDES BENZ - CLE53": make="Mercedes-Benz", model="CLE53".
+- Only extract "year" (model year) from invoices — never manufacture_month/manufacture_year.
+
+Import license rules:
+- import_license = מספר האישור, import_license_expiry = סיום תוקף in ISO format.
+- Also extract: vin, model, dealer_name, manufacture_year, manufacture_month.
 Return ONLY the JSON object, no explanation, no markdown.`;
 
 const SUPPORTED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
@@ -95,7 +118,7 @@ export async function POST(request: Request) {
       : { type: 'image', source: { type: 'base64', media_type: imageMediaType, data: base64 } };
 
     const response = await client.messages.create({
-      model: 'claude-haiku-4-5',
+      model: 'claude-sonnet-4-6',
       max_tokens: 1024,
       system: [{ type: 'text', text: SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } }] as Parameters<typeof client.messages.create>[0]['system'],
       messages: [{

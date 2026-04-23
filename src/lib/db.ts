@@ -1,7 +1,17 @@
 import Database from 'better-sqlite3';
 import path from 'path';
+import fs from 'fs';
 
 const DB_PATH = process.env.DATABASE_PATH || path.join(process.cwd(), 'vehicles.db');
+
+// On first cloud deploy: copy seed DB to the persistent volume
+if (process.env.DATABASE_PATH && !fs.existsSync(DB_PATH)) {
+  const seed = path.join(process.cwd(), 'vehicles.db');
+  if (fs.existsSync(seed)) {
+    fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
+    fs.copyFileSync(seed, DB_PATH);
+  }
+}
 
 declare global {
   // eslint-disable-next-line no-var
