@@ -94,7 +94,7 @@ export default function CalculatorPage() {
       shippingCostForeign: parseFloat(shipping) || 0,
       insuranceCostForeign: parseFloat(insurance) || 0,
       localExpensesILS: parseFloat(local) || 0,
-      customsRate: hasOrigin ? 0 : 0.07,
+      customsRate: vehicleType === 'n2' ? 0 : (hasOrigin ? 0 : 0.07),
       purchaseTaxRate: vehicleType === 'n2' ? 0 : ENGINE_TYPES[engineIdx].value,
       greenDiscount: vehicleType === 'n2' ? 0 : GREEN_GROUPS[greenIdx].discount,
     });
@@ -182,25 +182,27 @@ export default function CalculatorPage() {
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
             <h2 className="font-bold text-gray-800 mb-4 text-base">פרמטרי מיסוי</h2>
             <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">מכס</label>
-                <div className="grid grid-cols-2 gap-2">
-                  <label className={`flex flex-col items-center gap-1 p-3 rounded-xl border cursor-pointer transition-colors ${!hasOrigin ? 'border-blue-400 bg-blue-50' : 'border-gray-200 hover:bg-gray-50'}`}>
-                    <input type="radio" name="origin" checked={!hasOrigin} onChange={() => setHasOrigin(false)} className="hidden" />
-                    <span className="text-lg font-black text-gray-800">7%</span>
-                    <span className="text-xs text-gray-500 text-center">אין הצהרת מקור</span>
-                  </label>
-                  <label className={`flex flex-col items-center gap-1 p-3 rounded-xl border cursor-pointer transition-colors ${hasOrigin ? 'border-green-400 bg-green-50' : 'border-gray-200 hover:bg-gray-50'}`}>
-                    <input type="radio" name="origin" checked={hasOrigin} onChange={() => setHasOrigin(true)} className="hidden" />
-                    <span className="text-lg font-black text-green-700">0%</span>
-                    <span className="text-xs text-gray-500 text-center">יש הצהרת מקור</span>
-                  </label>
+              {vehicleType === 'm1' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">מכס</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <label className={`flex flex-col items-center gap-1 p-3 rounded-xl border cursor-pointer transition-colors ${!hasOrigin ? 'border-blue-400 bg-blue-50' : 'border-gray-200 hover:bg-gray-50'}`}>
+                      <input type="radio" name="origin" checked={!hasOrigin} onChange={() => setHasOrigin(false)} className="hidden" />
+                      <span className="text-lg font-black text-gray-800">7%</span>
+                      <span className="text-xs text-gray-500 text-center">אין הצהרת מקור</span>
+                    </label>
+                    <label className={`flex flex-col items-center gap-1 p-3 rounded-xl border cursor-pointer transition-colors ${hasOrigin ? 'border-green-400 bg-green-50' : 'border-gray-200 hover:bg-gray-50'}`}>
+                      <input type="radio" name="origin" checked={hasOrigin} onChange={() => setHasOrigin(true)} className="hidden" />
+                      <span className="text-lg font-black text-green-700">0%</span>
+                      <span className="text-xs text-gray-500 text-center">יש הצהרת מקור</span>
+                    </label>
+                  </div>
                 </div>
-              </div>
+              )}
 
               {vehicleType === 'n2' && (
                 <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-sm text-blue-700 font-medium text-center">
-                  N2 מסחרי — מכס + מע״מ בלבד (ללא מס קנייה)
+                  N2 מסחרי — ללא מכס, ללא מס קנייה — מע״מ 18% בלבד
                 </div>
               )}
 
