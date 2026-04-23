@@ -67,6 +67,7 @@ export default function CalculatorPage() {
   const [hasOrigin, setHasOrigin] = useState(false); // הצהרת מקור
   const [engineIdx, setEngineIdx] = useState(0);   // petrol default
   const [greenIdx, setGreenIdx] = useState(3);      // group 4 default
+  const [vehicleType, setVehicleType] = useState<'m1' | 'n2'>('m1');
 
   const fetchRate = useCallback(async (cur: Currency) => {
     setRateLoading(true);
@@ -94,10 +95,10 @@ export default function CalculatorPage() {
       insuranceCostForeign: parseFloat(insurance) || 0,
       localExpensesILS: parseFloat(local) || 0,
       customsRate: hasOrigin ? 0 : 0.07,
-      purchaseTaxRate: ENGINE_TYPES[engineIdx].value,
-      greenDiscount: GREEN_GROUPS[greenIdx].discount,
+      purchaseTaxRate: vehicleType === 'n2' ? 0 : ENGINE_TYPES[engineIdx].value,
+      greenDiscount: vehicleType === 'n2' ? 0 : GREEN_GROUPS[greenIdx].discount,
     });
-  }, [price, rate, shipping, insurance, local, hasOrigin, engineIdx, greenIdx]);
+  }, [price, rate, shipping, insurance, local, hasOrigin, engineIdx, greenIdx, vehicleType]);
 
   return (
     <div dir="rtl" className="min-h-screen bg-[#f0f2f7]">
@@ -108,7 +109,20 @@ export default function CalculatorPage() {
           </Link>
           <Calculator className="w-6 h-6 text-blue-600" />
           <h1 className="text-lg font-bold text-gray-900">מחשבון מיסי ייבוא</h1>
-          <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium">M1 פרטי</span>
+          <div className="flex bg-gray-100 rounded-xl p-1 gap-1 mr-auto">
+            <button
+              onClick={() => setVehicleType('m1')}
+              className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-all ${vehicleType === 'm1' ? 'bg-white shadow text-blue-700' : 'text-gray-500 hover:text-gray-700'}`}
+            >
+              M1 פרטי
+            </button>
+            <button
+              onClick={() => setVehicleType('n2')}
+              className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-all ${vehicleType === 'n2' ? 'bg-white shadow text-blue-700' : 'text-gray-500 hover:text-gray-700'}`}
+            >
+              N2 מסחרי
+            </button>
+          </div>
         </div>
       </header>
 
@@ -184,7 +198,13 @@ export default function CalculatorPage() {
                 </div>
               </div>
 
-              <div>
+              {vehicleType === 'n2' && (
+                <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-sm text-blue-700 font-medium text-center">
+                  N2 מסחרי — מכס + מע״מ בלבד (ללא מס קנייה)
+                </div>
+              )}
+
+              {vehicleType === 'm1' && <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">סוג מנוע</label>
                 <div className="grid grid-cols-2 gap-2">
                   {ENGINE_TYPES.map((eng, i) => (
@@ -195,9 +215,9 @@ export default function CalculatorPage() {
                     </label>
                   ))}
                 </div>
-              </div>
+              </div>}
 
-              <div>
+              {vehicleType === 'm1' && <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   ציון ירוק (CO₂ g/km)
                   <span className="text-xs text-gray-400 mr-2">— מפחית ממס הקנייה</span>
@@ -213,7 +233,7 @@ export default function CalculatorPage() {
                     </option>
                   ))}
                 </select>
-              </div>
+              </div>}
             </div>
           </div>
         </div>
@@ -260,25 +280,18 @@ export default function CalculatorPage() {
                   {result.shippingCostILS > 0 && <Row label="משלוח (₪)" value={formatILS(result.shippingCostILS)} />}
                   {result.insuranceCostILS > 0 && <Row label="ביטוח (₪)" value={formatILS(result.insuranceCostILS)} />}
                   <Row label="שווי CIF (₪)" value={formatILS(result.cifValue)} bold />
-                  <Row
-                    label={`מכס (${hasOrigin ? '0%' : '7%'})`}
-                    value={formatILS(result.customsFee)}
-                  />
+                  {result.customsFee > 0 && <Row label={`מכס (${hasOrigin ? '0%' : '7%'})`} value={formatILS(result.customsFee)} />
                   {parseFloat(local) > 0 && (
                     <Row label="הוצאות מקומיות" value={formatILS(parseFloat(local))} />
                   )}
                   <Row label="בסיס מס קנייה" value={formatILS(result.purchaseTaxBase)} bold />
-                  <Row
-                    label={`מס קנייה (${(ENGINE_TYPES[engineIdx].value * 100).toFixed(0)}%)`}
-                    value={formatILS(result.purchaseTaxBeforeDiscount)}
-                  />
-                  {GREEN_GROUPS[greenIdx].discount > 0 && (
-                    <Row
-                      label={`הנחה ירוקה קבוצה ${GREEN_GROUPS[greenIdx].group}`}
-                      value={`-${formatILS(GREEN_GROUPS[greenIdx].discount)}`}
-                    />
-                  )}
-                  <Row label="מס קנייה לאחר הנחה" value={formatILS(result.purchaseTax)} bold />
+                  {vehicleType === 'm1' && <>
+                    <Row label={`מס קנייה (${(ENGINE_TYPES[engineIdx].value * 100).toFixed(0)}%)`} value={formatILS(result.purchaseTaxBeforeDiscount)} />
+                    {GREEN_GROUPS[greenIdx].discount > 0 && (
+                      <Row label={`הנחה ירוקה קבוצה ${GREEN_GROUPS[greenIdx].group}`} value={`-${formatILS(GREEN_GROUPS[greenIdx].discount)}`} />
+                    )}
+                    <Row label="מס קנייה לאחר הנחה" value={formatILS(result.purchaseTax)} bold />
+                  </>}
                   <Row label={`מע״מ 18%`} value={formatILS(result.vatAmount)} bold />
                 </div>
               </div>
