@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { Vehicle, STATUS_COLORS, STATUS_PROGRESS, STATUS_DOT, PIPELINE_STATUSES, getTrackingUrl } from '@/lib/types';
 import { calculateAlerts, getDaysToRegistration } from '@/lib/alerts';
 import Image from 'next/image';
-import { AlertTriangle, Plus, Search, RefreshCw, Ship, ExternalLink, ChevronLeft, Car, ChevronDown, ChevronUp, Package, Truck, Clock, CheckCircle2 } from 'lucide-react';
+import { AlertTriangle, Plus, Search, RefreshCw, Ship, ExternalLink, ChevronLeft, Car, ChevronDown, ChevronUp, Package, Truck, Clock, CheckCircle2, Calculator } from 'lucide-react';
 import { Alert } from '@/lib/types';
 
 function AlertsSection({ alerts }: { alerts: Alert[] }) {
@@ -247,6 +247,10 @@ export default function Dashboard() {
             <button onClick={load} className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100">
               <RefreshCw className="w-4 h-4" />
             </button>
+            <Link href="/calculator"
+              className="flex items-center gap-2 bg-white border border-gray-200 text-gray-700 px-3 py-2 rounded-xl hover:bg-gray-50 text-sm font-medium shadow-sm">
+              <Calculator className="w-4 h-4 text-blue-500" /> מחשבון
+            </Link>
             <Link href="/vehicles/new"
               className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-xl hover:bg-blue-700 text-sm font-semibold shadow-sm">
               <Plus className="w-4 h-4" /> הוסף רכב
