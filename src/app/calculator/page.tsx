@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import Link from 'next/link';
-import { ArrowRight, Calculator, Info, RefreshCw } from 'lucide-react';
+import { ArrowRight, Calculator, Info, RefreshCw, Search, CheckCircle2 } from 'lucide-react';
 import {
   calculateImportTax,
   ENGINE_TYPES,
@@ -68,6 +68,51 @@ export default function CalculatorPage() {
   const [engineIdx, setEngineIdx] = useState(0);   // petrol default
   const [greenIdx, setGreenIdx] = useState(3);      // group 4 default
   const [vehicleType, setVehicleType] = useState<'m1' | 'n2'>('m1');
+
+  // EPA vehicle lookup
+  const currentYear = new Date().getFullYear();
+  const years = Array.from({ length: 15 }, (_, i) => currentYear - i);
+  const [lookupYear, setLookupYear] = useState(String(currentYear));
+  const [lookupMake, setLookupMake] = useState('');
+  const [lookupModel, setLookupModel] = useState('');
+  const [lookupOptionId, setLookupOptionId] = useState('');
+  const [makes, setMakes] = useState<string[]>([]);
+  const [models, setModels] = useState<string[]>([]);
+  const [options, setOptions] = useState<{ id: string; label: string }[]>([]);
+  const [lookupResult, setLookupResult] = useState<{ co2gkm: number; group: number } | null>(null);
+  const [lookupLoading, setLookupLoading] = useState(false);
+
+  const fetchMakes = useCallback(async (year: string) => {
+    setMakes([]); setModels([]); setOptions([]); setLookupMake(''); setLookupModel(''); setLookupOptionId('');
+    const r = await fetch(`/api/vehicle-lookup?action=makes&year=${year}`);
+    setMakes(await r.json());
+  }, []);
+
+  const fetchModels = useCallback(async (year: string, make: string) => {
+    setModels([]); setOptions([]); setLookupModel(''); setLookupOptionId('');
+    const r = await fetch(`/api/vehicle-lookup?action=models&year=${year}&make=${encodeURIComponent(make)}`);
+    setModels(await r.json());
+  }, []);
+
+  const fetchOptions = useCallback(async (year: string, make: string, model: string) => {
+    setOptions([]); setLookupOptionId('');
+    const r = await fetch(`/api/vehicle-lookup?action=options&year=${year}&make=${encodeURIComponent(make)}&model=${encodeURIComponent(model)}`);
+    setOptions(await r.json());
+  }, []);
+
+  const fetchCo2 = useCallback(async (id: string) => {
+    setLookupLoading(true);
+    try {
+      const r = await fetch(`/api/vehicle-lookup?action=co2&id=${id}`);
+      const data = await r.json();
+      if (data.group) {
+        setLookupResult({ co2gkm: data.co2gkm, group: data.group });
+        setGreenIdx(data.group - 1);
+      }
+    } finally {
+      setLookupLoading(false);
+    }
+  }, []);
 
   const fetchRate = useCallback(async (cur: Currency) => {
     setRateLoading(true);
@@ -219,22 +264,67 @@ export default function CalculatorPage() {
                 </div>
               </div>}
 
-              {vehicleType === 'm1' && <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  ציון ירוק (CO₂ g/km)
-                  <span className="text-xs text-gray-400 mr-2">— מפחית ממס הקנייה</span>
-                </label>
-                <select
-                  value={greenIdx}
-                  onChange={e => setGreenIdx(Number(e.target.value))}
-                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  {GREEN_GROUPS.map((g, i) => (
-                    <option key={i} value={i}>
-                      קבוצה {g.group} ({g.co2} CO₂){g.discount > 0 ? ` — הנחה ${formatILS(g.discount)}` : ' — ללא הנחה'}
-                    </option>
-                  ))}
-                </select>
+              {vehicleType === 'm1' && <div className="space-y-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+                    <Search className="w-4 h-4 text-blue-500" />
+                    חיפוש ציון ירוק לפי רכב (EPA)
+                  </label>
+                  <div className="space-y-2">
+                    <select value={lookupYear} onChange={e => { setLookupYear(e.target.value); fetchMakes(e.target.value); }}
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                      {years.map(y => <option key={y} value={y}>{y}</option>)}
+                    </select>
+                    <select value={lookupMake} disabled={makes.length === 0}
+                      onChange={e => { setLookupMake(e.target.value); fetchModels(lookupYear, e.target.value); }}
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-40">
+                      <option value="">בחר יצרן...</option>
+                      {makes.map(m => <option key={m} value={m}>{m}</option>)}
+                    </select>
+                    <select value={lookupModel} disabled={models.length === 0}
+                      onChange={e => { setLookupModel(e.target.value); fetchOptions(lookupYear, lookupMake, e.target.value); }}
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-40">
+                      <option value="">בחר דגם...</option>
+                      {models.map(m => <option key={m} value={m}>{m}</option>)}
+                    </select>
+                    {options.length > 0 && (
+                      <select value={lookupOptionId}
+                        onChange={e => { setLookupOptionId(e.target.value); if (e.target.value) fetchCo2(e.target.value); }}
+                        className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="">בחר גרסה...</option>
+                        {options.map(o => <option key={o.id} value={o.id}>{o.label}</option>)}
+                      </select>
+                    )}
+                    {lookupLoading && <p className="text-xs text-blue-500 text-center">טוען נתוני CO₂...</p>}
+                    {lookupResult && (
+                      <div className="flex items-center gap-2 bg-green-50 border border-green-200 rounded-xl p-3">
+                        <CheckCircle2 className="w-4 h-4 text-green-600 flex-shrink-0" />
+                        <span className="text-sm text-green-800 font-medium">
+                          {lookupResult.co2gkm} g/km CO₂ — קבוצה {lookupResult.group}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                  <button onClick={() => fetchMakes(lookupYear)}
+                    className="mt-2 text-xs text-blue-500 hover:text-blue-700 underline">
+                    {makes.length === 0 ? 'טען רשימת יצרנים' : `${makes.length} יצרנים נטענו`}
+                  </button>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    ציון ירוק (CO₂ g/km)
+                    <span className="text-xs text-gray-400 mr-2">— מפחית ממס הקנייה</span>
+                  </label>
+                  <select value={greenIdx} onChange={e => { setGreenIdx(Number(e.target.value)); setLookupResult(null); }}
+                    className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    {GREEN_GROUPS.map((g, i) => (
+                      <option key={i} value={i}>
+                        קבוצה {g.group} ({g.co2} CO₂){g.discount > 0 ? ` — הנחה ${formatILS(g.discount)}` : ' — ללא הנחה'}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>}
             </div>
           </div>
