@@ -180,7 +180,12 @@ function SectionTable({
       </button>
       {open && (
         <>
-          <div className="overflow-x-auto">
+          {/* Mobile: cards only, no wide wrapper */}
+          <div className="md:hidden divide-y divide-gray-100">
+            {vehicles.map(v => <VehicleRow key={v.id} v={v} />)}
+          </div>
+          {/* Desktop: full table */}
+          <div className="hidden md:block overflow-x-auto">
             <div className="min-w-[700px]">
               <div className="grid grid-cols-[2.2fr_1.4fr_1fr_1fr_1fr_1fr_auto] gap-4 px-6 py-2.5 bg-gray-50/70 border-b border-gray-100 text-[11px] font-bold text-gray-400 uppercase tracking-wider">
                 <span>רכב</span><span>VIN</span><span>סטטוס</span>
