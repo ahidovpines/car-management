@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import Link from 'next/link';
-import { ArrowRight, Calculator, Info } from 'lucide-react';
+import { ArrowRight, Calculator, Info, RefreshCw } from 'lucide-react';
 import {
   calculateImportTax,
   ENGINE_TYPES,
@@ -52,15 +52,37 @@ function Row({ label, value, sub, bold, big, highlight }: {
   );
 }
 
+const CURRENCIES = ['USD', 'EUR', 'CAD'] as const;
+type Currency = typeof CURRENCIES[number];
+
 export default function CalculatorPage() {
   const [price, setPrice] = useState('');
-  const [rate, setRate] = useState('3.65');
+  const [currency, setCurrency] = useState<Currency>('USD');
+  const [rate, setRate] = useState('');
+  const [rateDate, setRateDate] = useState('');
+  const [rateLoading, setRateLoading] = useState(false);
   const [shipping, setShipping] = useState('');
   const [insurance, setInsurance] = useState('');
   const [local, setLocal] = useState('');
   const [customsIdx, setCustomsIdx] = useState(2); // 7% default
   const [engineIdx, setEngineIdx] = useState(0);   // petrol default
   const [greenIdx, setGreenIdx] = useState(3);      // group 4 default
+
+  const fetchRate = useCallback(async (cur: Currency) => {
+    setRateLoading(true);
+    try {
+      const res = await fetch(`/api/exchange-rate?currency=${cur}`);
+      const data = await res.json();
+      if (data.rate) {
+        setRate(data.rate.toFixed(4));
+        setRateDate(data.date);
+      }
+    } finally {
+      setRateLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { fetchRate(currency); }, [currency, fetchRate]);
 
   const result = useMemo(() => {
     const p = parseFloat(price) || 0;
@@ -96,10 +118,49 @@ export default function CalculatorPage() {
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
             <h2 className="font-bold text-gray-800 mb-4 text-base">פרטי הרכב</h2>
             <div className="space-y-3">
-              <NumInput label="מחיר הרכב (מטבע חוץ)" value={price} onChange={setPrice} prefix="$" />
-              <NumInput label="שער חליפין ל-₪" value={rate} onChange={setRate} hint="שקלים לדולר (ברירת מחדל: 3.65)" />
-              <NumInput label="עלות משלוח (מטבע חוץ)" value={shipping} onChange={setShipping} prefix="$" hint="עלות ה-shipping מחו״ל" />
-              <NumInput label="עלות ביטוח (מטבע חוץ)" value={insurance} onChange={setInsurance} prefix="$" />
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">מחיר הרכב</label>
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <input
+                      type="number" min="0" value={price} onChange={e => setPrice(e.target.value)}
+                      className="w-full border border-gray-200 rounded-xl py-2.5 pr-3 pl-3 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="0"
+                    />
+                  </div>
+                  <select
+                    value={currency}
+                    onChange={e => setCurrency(e.target.value as Currency)}
+                    className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium"
+                  >
+                    {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  שער חליפין ל-₪
+                  {rateDate && <span className="text-xs text-gray-400 mr-2">עודכן: {rateDate}</span>}
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="number" step="0.0001" value={rate} onChange={e => setRate(e.target.value)}
+                    className="flex-1 border border-gray-200 rounded-xl py-2.5 px-3 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                  <button
+                    onClick={() => fetchRate(currency)}
+                    disabled={rateLoading}
+                    className="flex items-center gap-1.5 px-3 py-2 border border-gray-200 rounded-xl text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-50"
+                  >
+                    <RefreshCw className={`w-4 h-4 ${rateLoading ? 'animate-spin' : ''}`} />
+                    עדכן
+                  </button>
+                </div>
+              </div>
+
+              <NumInput label={`עלות משלוח (${currency})`} value={shipping} onChange={setShipping} prefix={currency === 'USD' ? '$' : currency === 'EUR' ? '€' : 'C$'} hint="עלות ה-shipping מחו״ל" />
+              <NumInput label={`עלות ביטוח (${currency})`} value={insurance} onChange={setInsurance} prefix={currency === 'USD' ? '$' : currency === 'EUR' ? '€' : 'C$'} />
               <NumInput label="הוצאות מקומיות (₪)" value={local} onChange={setLocal} prefix="₪" hint="מכונאות, שחרור, בדיקות וכו'" />
             </div>
           </div>
