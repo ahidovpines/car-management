@@ -1,12 +1,12 @@
 'use client';
 
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useMemo, useEffect, useCallback, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowRight, Calculator, Info, RefreshCw, Search, CheckCircle2 } from 'lucide-react';
 import {
   calculateImportTax,
   ENGINE_TYPES,
-  CUSTOMS_OPTIONS,
   GREEN_GROUPS,
   formatILS,
 } from '@/lib/taxCalculator';
@@ -55,18 +55,29 @@ function Row({ label, value, sub, bold, big, highlight }: {
 const CURRENCIES = ['USD', 'EUR', 'CAD'] as const;
 type Currency = typeof CURRENCIES[number];
 
-export default function CalculatorPage() {
-  const [price, setPrice] = useState('');
-  const [currency, setCurrency] = useState<Currency>('USD');
+function greenGroupLabel(g: typeof GREEN_GROUPS[number]) {
+  if (g.adjustment < 0) return `הנחה ${formatILS(Math.abs(g.adjustment))}`;
+  if (g.adjustment > 0) return `תוספת ${formatILS(g.adjustment)}`;
+  return 'ללא שינוי';
+}
+
+function CalculatorInner() {
+  const searchParams = useSearchParams();
+  const [price, setPrice] = useState(() => searchParams.get('price') || '');
+  const [currency, setCurrency] = useState<Currency>(() => {
+    const c = searchParams.get('currency');
+    return (c && (CURRENCIES as readonly string[]).includes(c)) ? c as Currency : 'USD';
+  });
+  const [vehicleLabel] = useState(() => searchParams.get('label') || '');
   const [rate, setRate] = useState('');
   const [rateDate, setRateDate] = useState('');
   const [rateLoading, setRateLoading] = useState(false);
   const [shipping, setShipping] = useState('');
-  const [insurance, setInsurance] = useState('');
   const [local, setLocal] = useState('');
-  const [hasOrigin, setHasOrigin] = useState(false); // הצהרת מקור
-  const [engineIdx, setEngineIdx] = useState(0);   // petrol default
-  const [greenIdx, setGreenIdx] = useState(3);      // group 4 default
+  const [consumerPrice, setConsumerPrice] = useState('');
+  const [hasOrigin, setHasOrigin] = useState(false);
+  const [engineIdx, setEngineIdx] = useState(0);
+  const [greenIdx, setGreenIdx] = useState(3);
   const [vehicleType, setVehicleType] = useState<'m1' | 'n2'>('m1');
   const [weightCategory, setWeightCategory] = useState<'under_3500' | 'between_3500_4500' | 'over_4500'>('under_3500');
 
@@ -134,19 +145,24 @@ export default function CalculatorPage() {
   const result = useMemo(() => {
     const p = parseFloat(price) || 0;
     if (p === 0) return null;
+    const cp = parseFloat(consumerPrice) || undefined;
     return calculateImportTax({
       vehiclePriceForeign: p,
       currencyRate: parseFloat(rate) || 3.65,
       shippingCostForeign: parseFloat(shipping) || 0,
-      insuranceCostForeign: parseFloat(insurance) || 0,
       localExpensesILS: parseFloat(local) || 0,
-      customsRate: hasOrigin ? 0 : 0.07,
+      customsRate: vehicleType === 'n2' ? (hasOrigin ? 0 : 0.07) : (hasOrigin ? 0 : 0.07),
       purchaseTaxRate: vehicleType === 'n2'
         ? (weightCategory === 'under_3500' ? 0.83 : weightCategory === 'between_3500_4500' ? 0.72 : 0)
         : ENGINE_TYPES[engineIdx].value,
-      greenDiscount: vehicleType === 'n2' ? 0 : GREEN_GROUPS[greenIdx].discount,
+      greenAdjustment: vehicleType === 'n2' ? 0 : GREEN_GROUPS[greenIdx].adjustment,
+      consumerPrice: vehicleType === 'm1' ? cp : undefined,
     });
-  }, [price, rate, shipping, insurance, local, hasOrigin, engineIdx, greenIdx, vehicleType]);
+  }, [price, rate, shipping, local, consumerPrice, hasOrigin, engineIdx, greenIdx, vehicleType, weightCategory]);
+
+  const purchaseTaxRateLabel = vehicleType === 'n2'
+    ? (weightCategory === 'under_3500' ? '83' : weightCategory === 'between_3500_4500' ? '72' : '0')
+    : (ENGINE_TYPES[engineIdx].value * 100).toFixed(0);
 
   return (
     <div dir="rtl" className="min-h-screen bg-[#f0f2f7]">
@@ -156,7 +172,10 @@ export default function CalculatorPage() {
             <ArrowRight className="w-5 h-5 text-gray-500" />
           </Link>
           <Calculator className="w-6 h-6 text-blue-600" />
-          <h1 className="text-lg font-bold text-gray-900">מחשבון מיסי ייבוא</h1>
+          <div>
+            <h1 className="text-lg font-bold text-gray-900">מחשבון מיסי ייבוא</h1>
+            {vehicleLabel && <p className="text-xs text-blue-500 font-medium">{vehicleLabel}</p>}
+          </div>
         </div>
       </header>
 
@@ -230,6 +249,7 @@ export default function CalculatorPage() {
                   </label>
                 </div>
               </div>
+
               {vehicleType === 'm1' && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">מכס</label>
@@ -254,9 +274,9 @@ export default function CalculatorPage() {
                     <label className="block text-sm font-medium text-gray-700 mb-2">קטגוריית משקל הרכב</label>
                     <div className="space-y-2">
                       {[
-                        { val: 'under_3500',       label: 'מתחת ל-3.5 טון',     sub: 'מס קנייה 83%' },
-                        { val: 'between_3500_4500', label: 'בין 3.5 ל-4.5 טון',  sub: 'מס קנייה 72%' },
-                        { val: 'over_4500',         label: 'מעל 4.5 טון',         sub: 'מע״מ בלבד (ללא מס קנייה)' },
+                        { val: 'under_3500',        label: 'מתחת ל-3.5 טון',    sub: 'מס קנייה 83%' },
+                        { val: 'between_3500_4500', label: 'בין 3.5 ל-4.5 טון', sub: 'מס קנייה 72%' },
+                        { val: 'over_4500',          label: 'מעל 4.5 טון',        sub: 'מע״מ בלבד (ללא מס קנייה)' },
                       ].map(opt => (
                         <label key={opt.val} className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-colors ${weightCategory === opt.val ? 'border-blue-400 bg-blue-50' : 'border-gray-200 hover:bg-gray-50'}`}>
                           <input type="radio" name="weight" checked={weightCategory === opt.val} onChange={() => setWeightCategory(opt.val as typeof weightCategory)} className="hidden" />
@@ -284,81 +304,92 @@ export default function CalculatorPage() {
                 </div>
               )}
 
-              {vehicleType === 'm1' && <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">סוג מנוע</label>
-                <div className="grid grid-cols-2 gap-2">
-                  {ENGINE_TYPES.map((eng, i) => (
-                    <label key={i} className={`flex flex-col p-3 rounded-xl border cursor-pointer transition-colors ${engineIdx === i ? 'border-blue-400 bg-blue-50' : 'border-gray-200 hover:bg-gray-50'}`}>
-                      <input type="radio" name="engine" checked={engineIdx === i} onChange={() => setEngineIdx(i)} className="hidden" />
-                      <span className="text-sm font-medium">{eng.label}</span>
-                      <span className="text-xs text-gray-400">מס קנייה {eng.sublabel}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>}
-
-              {vehicleType === 'm1' && <div className="space-y-3">
+              {vehicleType === 'm1' && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                    <Search className="w-4 h-4 text-blue-500" />
-                    חיפוש ציון ירוק לפי רכב (EPA)
-                  </label>
-                  <div className="space-y-2">
-                    <select value={lookupYear} onChange={e => { setLookupYear(e.target.value); fetchMakes(e.target.value); }}
-                      className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
-                      {years.map(y => <option key={y} value={y}>{y}</option>)}
-                    </select>
-                    <select value={lookupMake} disabled={makes.length === 0}
-                      onChange={e => { setLookupMake(e.target.value); fetchModels(lookupYear, e.target.value); }}
-                      className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-40">
-                      <option value="">בחר יצרן...</option>
-                      {makes.map(m => <option key={m} value={m}>{m}</option>)}
-                    </select>
-                    <select value={lookupModel} disabled={models.length === 0}
-                      onChange={e => { setLookupModel(e.target.value); fetchOptions(lookupYear, lookupMake, e.target.value); }}
-                      className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-40">
-                      <option value="">בחר דגם...</option>
-                      {models.map(m => <option key={m} value={m}>{m}</option>)}
-                    </select>
-                    {options.length > 0 && (
-                      <select value={lookupOptionId}
-                        onChange={e => { setLookupOptionId(e.target.value); if (e.target.value) fetchCo2(e.target.value); }}
-                        className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        <option value="">בחר גרסה...</option>
-                        {options.map(o => <option key={o.id} value={o.id}>{o.label}</option>)}
-                      </select>
-                    )}
-                    {lookupLoading && <p className="text-xs text-blue-500 text-center">טוען נתוני CO₂...</p>}
-                    {lookupResult && (
-                      <div className="flex items-center gap-2 bg-green-50 border border-green-200 rounded-xl p-3">
-                        <CheckCircle2 className="w-4 h-4 text-green-600 flex-shrink-0" />
-                        <span className="text-sm text-green-800 font-medium">
-                          {lookupResult.co2gkm} g/km CO₂ — קבוצה {lookupResult.group}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                  <button onClick={() => fetchMakes(lookupYear)}
-                    className="mt-2 text-xs text-blue-500 hover:text-blue-700 underline">
-                    {makes.length === 0 ? 'טען רשימת יצרנים' : `${makes.length} יצרנים נטענו`}
-                  </button>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    ציון ירוק (CO₂ g/km)
-                    <span className="text-xs text-gray-400 mr-2">— מפחית ממס הקנייה</span>
-                  </label>
-                  <select value={greenIdx} onChange={e => { setGreenIdx(Number(e.target.value)); setLookupResult(null); }}
-                    className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    {GREEN_GROUPS.map((g, i) => (
-                      <option key={i} value={i}>
-                        קבוצה {g.group} ({g.co2} CO₂){g.discount > 0 ? ` — הנחה ${formatILS(g.discount)}` : ' — ללא הנחה'}
-                      </option>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">סוג מנוע</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {ENGINE_TYPES.map((eng, i) => (
+                      <label key={i} className={`flex flex-col p-3 rounded-xl border cursor-pointer transition-colors ${engineIdx === i ? 'border-blue-400 bg-blue-50' : 'border-gray-200 hover:bg-gray-50'}`}>
+                        <input type="radio" name="engine" checked={engineIdx === i} onChange={() => setEngineIdx(i)} className="hidden" />
+                        <span className="text-sm font-medium">{eng.label}</span>
+                        <span className="text-xs text-gray-400">מס קנייה {eng.sublabel}</span>
+                      </label>
                     ))}
-                  </select>
+                  </div>
                 </div>
-              </div>}
+              )}
+
+              {vehicleType === 'm1' && (
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+                      <Search className="w-4 h-4 text-blue-500" />
+                      חיפוש ציון ירוק לפי רכב (EPA)
+                    </label>
+                    <div className="space-y-2">
+                      <select value={lookupYear} onChange={e => { setLookupYear(e.target.value); fetchMakes(e.target.value); }}
+                        className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        {years.map(y => <option key={y} value={y}>{y}</option>)}
+                      </select>
+                      <select value={lookupMake} disabled={makes.length === 0}
+                        onChange={e => { setLookupMake(e.target.value); fetchModels(lookupYear, e.target.value); }}
+                        className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-40">
+                        <option value="">בחר יצרן...</option>
+                        {makes.map(m => <option key={m} value={m}>{m}</option>)}
+                      </select>
+                      <select value={lookupModel} disabled={models.length === 0}
+                        onChange={e => { setLookupModel(e.target.value); fetchOptions(lookupYear, lookupMake, e.target.value); }}
+                        className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-40">
+                        <option value="">בחר דגם...</option>
+                        {models.map(m => <option key={m} value={m}>{m}</option>)}
+                      </select>
+                      {options.length > 0 && (
+                        <select value={lookupOptionId}
+                          onChange={e => { setLookupOptionId(e.target.value); if (e.target.value) fetchCo2(e.target.value); }}
+                          className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                          <option value="">בחר גרסה...</option>
+                          {options.map(o => <option key={o.id} value={o.id}>{o.label}</option>)}
+                        </select>
+                      )}
+                      {lookupLoading && <p className="text-xs text-blue-500 text-center">טוען נתוני CO₂...</p>}
+                      {lookupResult && (
+                        <div className="flex items-center gap-2 bg-green-50 border border-green-200 rounded-xl p-3">
+                          <CheckCircle2 className="w-4 h-4 text-green-600 flex-shrink-0" />
+                          <span className="text-sm text-green-800 font-medium">
+                            {lookupResult.co2gkm} g/km CO₂ — קבוצה {lookupResult.group}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                    <button onClick={() => fetchMakes(lookupYear)}
+                      className="mt-2 text-xs text-blue-500 hover:text-blue-700 underline">
+                      {makes.length === 0 ? 'טען רשימת יצרנים' : `${makes.length} יצרנים נטענו`}
+                    </button>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      ציון ירוק (CO₂ g/km)
+                    </label>
+                    <select value={greenIdx} onChange={e => { setGreenIdx(Number(e.target.value)); setLookupResult(null); }}
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                      {GREEN_GROUPS.map((g, i) => (
+                        <option key={i} value={i}>
+                          קבוצה {g.group} ({g.co2} CO₂) — {greenGroupLabel(g)}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <NumInput
+                    label="מחיר צרכני משוער (₪)"
+                    value={consumerPrice}
+                    onChange={setConsumerPrice}
+                    prefix="₪"
+                    hint="לחישוב מס יוקרה — רכב מעל ₪302,000"
+                  />
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -397,37 +428,56 @@ export default function CalculatorPage() {
                 </div>
               </div>
 
+              {result.luxuryApplies && (
+                <div className="bg-orange-50 border border-orange-200 rounded-2xl p-4 flex gap-3">
+                  <Info className="w-4 h-4 text-orange-600 flex-shrink-0 mt-0.5" />
+                  <p className="text-xs text-orange-700 leading-relaxed font-medium">
+                    מס יוקרה חל — מחיר צרכני מעל ₪302,000. תוספת: {formatILS(result.luxuryTax)}
+                  </p>
+                </div>
+              )}
+
               {/* Breakdown */}
               <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
                 <h2 className="font-bold text-gray-800 mb-3 text-base">פירוט חישוב</h2>
                 <div className="space-y-0">
                   <Row label="מחיר רכב (₪)" value={formatILS(result.vehiclePriceILS)} />
                   {result.shippingCostILS > 0 && <Row label="משלוח (₪)" value={formatILS(result.shippingCostILS)} />}
-                  {result.insuranceCostILS > 0 && <Row label="ביטוח (₪)" value={formatILS(result.insuranceCostILS)} />}
-                  <Row label="שווי CIF (₪)" value={formatILS(result.cifValue)} bold />
-                  {result.customsFee > 0 && <Row label={`מכס (${hasOrigin ? '0%' : '7%'})`} value={formatILS(result.customsFee)} />}
                   {parseFloat(local) > 0 && (
-                    <Row label="הוצאות מקומיות" value={formatILS(parseFloat(local))} />
+                    <Row label="הוצאות מקומיות (₪)" value={formatILS(parseFloat(local))} />
                   )}
+                  <Row label="בסיס מכס (CIF + הוצאות)" value={formatILS(result.customsBase)} bold />
+                  {result.customsFee > 0 && <Row label={`מכס (${hasOrigin ? '0' : '7'}%)`} value={formatILS(result.customsFee)} />}
                   <Row label="בסיס מס קנייה" value={formatILS(result.purchaseTaxBase)} bold />
-                  {(vehicleType === 'm1' || (vehicleType === 'n2' && weightCategory !== 'over_4500')) && <>
-                    <Row
-                      label={`מס קנייה (${vehicleType === 'n2' ? (weightCategory === 'under_3500' ? '83' : '72') : (ENGINE_TYPES[engineIdx].value * 100).toFixed(0)}%)`}
-                      value={formatILS(result.purchaseTaxBeforeDiscount)}
-                    />
-                    {vehicleType === 'm1' && GREEN_GROUPS[greenIdx].discount > 0 && (
-                      <Row label={`הנחה ירוקה קבוצה ${GREEN_GROUPS[greenIdx].group}`} value={`-${formatILS(GREEN_GROUPS[greenIdx].discount)}`} />
-                    )}
-                    <Row label="מס קנייה לאחר הנחה" value={formatILS(result.purchaseTax)} bold />
-                  </>}
-                  <Row label={`מע״מ 18%`} value={formatILS(result.vatAmount)} bold />
+                  {(vehicleType === 'm1' || (vehicleType === 'n2' && weightCategory !== 'over_4500')) && (
+                    <>
+                      <Row
+                        label={`מס קנייה לפני ירוק (${purchaseTaxRateLabel}%)`}
+                        value={formatILS(result.purchaseTaxBeforeAdjustment)}
+                      />
+                      {vehicleType === 'm1' && result.greenAdjustment !== 0 && (
+                        <Row
+                          label={`${result.greenAdjustment < 0 ? 'הנחה' : 'תוספת'} ירוקה — קבוצה ${GREEN_GROUPS[greenIdx].group}`}
+                          value={`${result.greenAdjustment < 0 ? '-' : '+'}${formatILS(Math.abs(result.greenAdjustment))}`}
+                        />
+                      )}
+                      <Row label="מס קנייה לאחר ירוק" value={formatILS(result.purchaseTaxAfterGreen)} bold />
+                      {result.luxuryApplies && (
+                        <Row label="מס יוקרה (7.64% על עודף ₪302,000)" value={formatILS(result.luxuryTax)} />
+                      )}
+                      {result.luxuryApplies && (
+                        <Row label="סה״כ מס קנייה" value={formatILS(result.purchaseTax)} bold />
+                      )}
+                    </>
+                  )}
+                  <Row label="מע״מ 18%" value={formatILS(result.vatAmount)} bold />
                 </div>
               </div>
 
               <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex gap-3">
                 <Info className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
                 <p className="text-xs text-amber-700 leading-relaxed">
-                  החישוב מבוסס על נוסחאות רשות המסים לרכב M1 פרטי. אינו כולל מס יוקרה, אגרות נמל, ריב״ח, ועלויות רישוי. לאישור סופי פנה לסוכן המכס שלך.
+                  החישוב מבוסס על נוסחאות רשות המסים. אינו כולל אגרות נמל, ריב״ח ועלויות רישוי. לאישור סופי פנה לסוכן המכס שלך.
                 </p>
               </div>
             </>
@@ -435,5 +485,13 @@ export default function CalculatorPage() {
         </div>
       </main>
     </div>
+  );
+}
+
+export default function CalculatorPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-[#f0f2f7] flex items-center justify-center text-gray-400">טוען...</div>}>
+      <CalculatorInner />
+    </Suspense>
   );
 }

@@ -25,7 +25,15 @@ function co2ToGreenGroup(gpm: number): number {
   if (gkm <= 150) return 9;
   if (gkm <= 165) return 10;
   if (gkm <= 180) return 11;
-  return 12;
+  if (gkm <= 195) return 12;
+  if (gkm <= 210) return 13;
+  if (gkm <= 230) return 14;
+  if (gkm <= 260) return 15;
+  if (gkm <= 295) return 16;
+  if (gkm <= 330) return 17;
+  if (gkm <= 370) return 18;
+  if (gkm <= 420) return 19;
+  return 20;
 }
 
 export async function GET(request: Request) {

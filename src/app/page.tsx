@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Vehicle, STATUS_COLORS, STATUS_PROGRESS, STATUS_DOT, PIPELINE_STATUSES, getTrackingUrl } from '@/lib/types';
 import { calculateAlerts, getDaysToRegistration } from '@/lib/alerts';
 import Image from 'next/image';
+import { useRouter } from 'next/navigation';
 import { AlertTriangle, Plus, Search, RefreshCw, Ship, ExternalLink, ChevronLeft, Car, ChevronDown, ChevronUp, Package, Truck, Clock, CheckCircle2, Calculator } from 'lucide-react';
 import { Alert } from '@/lib/types';
 
@@ -58,8 +59,23 @@ function StageBar({ status }: { status: string }) {
 }
 
 function VehicleRow({ v }: { v: VehicleWithMeta }) {
+  const router = useRouter();
   const daysReg = getDaysToRegistration(v.manufacture_month, v.manufacture_year);
   const trackUrl = getTrackingUrl(v.shipping_company, v.container_number) || v.bl_tracking_url;
+
+  const calcUrl = (() => {
+    const params = new URLSearchParams();
+    params.set('label', `${v.make} ${v.model}${v.year ? ' ' + v.year : ''}`);
+    if (v.purchase_price) params.set('price', String(v.purchase_price));
+    if (v.purchase_currency) params.set('currency', v.purchase_currency);
+    return `/calculator?${params.toString()}`;
+  })();
+
+  const openCalc = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    router.push(calcUrl);
+  };
 
   return (
     <Link href={`/vehicles/${v.id}`} className="block hover:bg-blue-50/40 transition-colors cursor-pointer">
@@ -76,6 +92,9 @@ function VehicleRow({ v }: { v: VehicleWithMeta }) {
           </div>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
+          <button onClick={openCalc} className="p-1.5 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-500 transition-colors" title="מחשבון מיסים">
+            <Calculator className="w-3.5 h-3.5" />
+          </button>
           <span className={`inline-flex px-2 py-0.5 rounded-full text-[11px] font-semibold ${STATUS_COLORS[v.status] || 'bg-gray-100 text-gray-600'}`}>
             {v.status}
           </span>
@@ -120,9 +139,14 @@ function VehicleRow({ v }: { v: VehicleWithMeta }) {
               </span>
             : <span className="text-gray-300">—</span>}
         </div>
-        <span className="flex items-center gap-1 text-sm text-blue-600 font-semibold opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-          פתח <ChevronLeft className="w-4 h-4" />
-        </span>
+        <div className="flex items-center gap-2">
+          <button onClick={openCalc} className="p-1.5 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-500 transition-colors opacity-0 group-hover:opacity-100" title="מחשבון מיסים">
+            <Calculator className="w-4 h-4" />
+          </button>
+          <span className="flex items-center gap-1 text-sm text-blue-600 font-semibold opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+            פתח <ChevronLeft className="w-4 h-4" />
+          </span>
+        </div>
       </div>
     </Link>
   );
