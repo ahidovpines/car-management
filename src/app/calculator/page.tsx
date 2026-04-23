@@ -64,7 +64,7 @@ export default function CalculatorPage() {
   const [shipping, setShipping] = useState('');
   const [insurance, setInsurance] = useState('');
   const [local, setLocal] = useState('');
-  const [customsIdx, setCustomsIdx] = useState(2); // 7% default
+  const [hasOrigin, setHasOrigin] = useState(false); // הצהרת מקור
   const [engineIdx, setEngineIdx] = useState(0);   // petrol default
   const [greenIdx, setGreenIdx] = useState(3);      // group 4 default
 
@@ -93,11 +93,11 @@ export default function CalculatorPage() {
       shippingCostForeign: parseFloat(shipping) || 0,
       insuranceCostForeign: parseFloat(insurance) || 0,
       localExpensesILS: parseFloat(local) || 0,
-      customsRate: CUSTOMS_OPTIONS[customsIdx].value,
+      customsRate: hasOrigin ? 0 : 0.07,
       purchaseTaxRate: ENGINE_TYPES[engineIdx].value,
       greenDiscount: GREEN_GROUPS[greenIdx].discount,
     });
-  }, [price, rate, shipping, insurance, local, customsIdx, engineIdx, greenIdx]);
+  }, [price, rate, shipping, insurance, local, hasOrigin, engineIdx, greenIdx]);
 
   return (
     <div dir="rtl" className="min-h-screen bg-[#f0f2f7]">
@@ -169,14 +169,18 @@ export default function CalculatorPage() {
             <h2 className="font-bold text-gray-800 mb-4 text-base">פרמטרי מיסוי</h2>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">מכס לפי מדינת מקור</label>
-                <div className="space-y-2">
-                  {CUSTOMS_OPTIONS.map((opt, i) => (
-                    <label key={i} className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-colors ${customsIdx === i ? 'border-blue-400 bg-blue-50' : 'border-gray-200 hover:bg-gray-50'}`}>
-                      <input type="radio" name="customs" checked={customsIdx === i} onChange={() => setCustomsIdx(i)} className="accent-blue-600" />
-                      <span className="text-sm">{opt.label}</span>
-                    </label>
-                  ))}
+                <label className="block text-sm font-medium text-gray-700 mb-2">מכס</label>
+                <div className="grid grid-cols-2 gap-2">
+                  <label className={`flex flex-col items-center gap-1 p-3 rounded-xl border cursor-pointer transition-colors ${!hasOrigin ? 'border-blue-400 bg-blue-50' : 'border-gray-200 hover:bg-gray-50'}`}>
+                    <input type="radio" name="origin" checked={!hasOrigin} onChange={() => setHasOrigin(false)} className="hidden" />
+                    <span className="text-lg font-black text-gray-800">7%</span>
+                    <span className="text-xs text-gray-500 text-center">אין הצהרת מקור</span>
+                  </label>
+                  <label className={`flex flex-col items-center gap-1 p-3 rounded-xl border cursor-pointer transition-colors ${hasOrigin ? 'border-green-400 bg-green-50' : 'border-gray-200 hover:bg-gray-50'}`}>
+                    <input type="radio" name="origin" checked={hasOrigin} onChange={() => setHasOrigin(true)} className="hidden" />
+                    <span className="text-lg font-black text-green-700">0%</span>
+                    <span className="text-xs text-gray-500 text-center">יש הצהרת מקור</span>
+                  </label>
                 </div>
               </div>
 
@@ -257,7 +261,7 @@ export default function CalculatorPage() {
                   {result.insuranceCostILS > 0 && <Row label="ביטוח (₪)" value={formatILS(result.insuranceCostILS)} />}
                   <Row label="שווי CIF (₪)" value={formatILS(result.cifValue)} bold />
                   <Row
-                    label={`מכס (${(CUSTOMS_OPTIONS[customsIdx].value * 100).toFixed(1)}%)`}
+                    label={`מכס (${hasOrigin ? '0%' : '7%'})`}
                     value={formatILS(result.customsFee)}
                   />
                   {parseFloat(local) > 0 && (
