@@ -5,7 +5,10 @@ export const metadata: Metadata = {
   title: "ניהול רכבים | אביחי פינס סחר",
   description: "מערכת ניהול רכבים מיובאים",
   manifest: "/manifest.json",
-  appleWebApp: { capable: true, statusBarStyle: "default", title: "רכבים" },
+  appleWebApp: { capable: true, statusBarStyle: "default", title: "A.P Trade" },
+  icons: {
+    apple: "/apple-touch-icon.png",
+  },
 };
 
 export const viewport: Viewport = {
