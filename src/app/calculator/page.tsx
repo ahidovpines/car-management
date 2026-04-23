@@ -68,6 +68,7 @@ export default function CalculatorPage() {
   const [engineIdx, setEngineIdx] = useState(0);   // petrol default
   const [greenIdx, setGreenIdx] = useState(3);      // group 4 default
   const [vehicleType, setVehicleType] = useState<'m1' | 'n2'>('m1');
+  const [weightCategory, setWeightCategory] = useState<'under_3500' | 'between_3500_4500' | 'over_4500'>('under_3500');
 
   // EPA vehicle lookup
   const currentYear = new Date().getFullYear();
@@ -139,8 +140,10 @@ export default function CalculatorPage() {
       shippingCostForeign: parseFloat(shipping) || 0,
       insuranceCostForeign: parseFloat(insurance) || 0,
       localExpensesILS: parseFloat(local) || 0,
-      customsRate: vehicleType === 'n2' ? 0 : (hasOrigin ? 0 : 0.07),
-      purchaseTaxRate: vehicleType === 'n2' ? 0 : ENGINE_TYPES[engineIdx].value,
+      customsRate: hasOrigin ? 0 : 0.07,
+      purchaseTaxRate: vehicleType === 'n2'
+        ? (weightCategory === 'under_3500' ? 0.83 : weightCategory === 'between_3500_4500' ? 0.72 : 0)
+        : ENGINE_TYPES[engineIdx].value,
       greenDiscount: vehicleType === 'n2' ? 0 : GREEN_GROUPS[greenIdx].discount,
     });
   }, [price, rate, shipping, insurance, local, hasOrigin, engineIdx, greenIdx, vehicleType]);
@@ -246,8 +249,38 @@ export default function CalculatorPage() {
               )}
 
               {vehicleType === 'n2' && (
-                <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-sm text-blue-700 font-medium text-center">
-                  N2 מסחרי — ללא מכס, ללא מס קנייה — מע״מ 18% בלבד
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">קטגוריית משקל הרכב</label>
+                    <div className="space-y-2">
+                      {[
+                        { val: 'under_3500',       label: 'מתחת ל-3.5 טון',     sub: 'מס קנייה 83%' },
+                        { val: 'between_3500_4500', label: 'בין 3.5 ל-4.5 טון',  sub: 'מס קנייה 72%' },
+                        { val: 'over_4500',         label: 'מעל 4.5 טון',         sub: 'מע״מ בלבד (ללא מס קנייה)' },
+                      ].map(opt => (
+                        <label key={opt.val} className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-colors ${weightCategory === opt.val ? 'border-blue-400 bg-blue-50' : 'border-gray-200 hover:bg-gray-50'}`}>
+                          <input type="radio" name="weight" checked={weightCategory === opt.val} onChange={() => setWeightCategory(opt.val as typeof weightCategory)} className="hidden" />
+                          <span className="text-sm font-medium">{opt.label}</span>
+                          <span className={`text-xs font-semibold ${opt.val === 'over_4500' ? 'text-green-600' : 'text-blue-600'}`}>{opt.sub}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">מכס</label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <label className={`flex flex-col items-center gap-1 p-3 rounded-xl border cursor-pointer transition-colors ${!hasOrigin ? 'border-blue-400 bg-blue-50' : 'border-gray-200 hover:bg-gray-50'}`}>
+                        <input type="radio" name="origin_n2" checked={!hasOrigin} onChange={() => setHasOrigin(false)} className="hidden" />
+                        <span className="text-lg font-black text-gray-800">7%</span>
+                        <span className="text-xs text-gray-500 text-center">אין הצהרת מקור</span>
+                      </label>
+                      <label className={`flex flex-col items-center gap-1 p-3 rounded-xl border cursor-pointer transition-colors ${hasOrigin ? 'border-green-400 bg-green-50' : 'border-gray-200 hover:bg-gray-50'}`}>
+                        <input type="radio" name="origin_n2" checked={hasOrigin} onChange={() => setHasOrigin(true)} className="hidden" />
+                        <span className="text-lg font-black text-green-700">0%</span>
+                        <span className="text-xs text-gray-500 text-center">יש הצהרת מקור</span>
+                      </label>
+                    </div>
+                  </div>
                 </div>
               )}
 
@@ -377,9 +410,12 @@ export default function CalculatorPage() {
                     <Row label="הוצאות מקומיות" value={formatILS(parseFloat(local))} />
                   )}
                   <Row label="בסיס מס קנייה" value={formatILS(result.purchaseTaxBase)} bold />
-                  {vehicleType === 'm1' && <>
-                    <Row label={`מס קנייה (${(ENGINE_TYPES[engineIdx].value * 100).toFixed(0)}%)`} value={formatILS(result.purchaseTaxBeforeDiscount)} />
-                    {GREEN_GROUPS[greenIdx].discount > 0 && (
+                  {(vehicleType === 'm1' || (vehicleType === 'n2' && weightCategory !== 'over_4500')) && <>
+                    <Row
+                      label={`מס קנייה (${vehicleType === 'n2' ? (weightCategory === 'under_3500' ? '83' : '72') : (ENGINE_TYPES[engineIdx].value * 100).toFixed(0)}%)`}
+                      value={formatILS(result.purchaseTaxBeforeDiscount)}
+                    />
+                    {vehicleType === 'm1' && GREEN_GROUPS[greenIdx].discount > 0 && (
                       <Row label={`הנחה ירוקה קבוצה ${GREEN_GROUPS[greenIdx].group}`} value={`-${formatILS(GREEN_GROUPS[greenIdx].discount)}`} />
                     )}
                     <Row label="מס קנייה לאחר הנחה" value={formatILS(result.purchaseTax)} bold />
