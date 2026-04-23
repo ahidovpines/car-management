@@ -204,6 +204,7 @@ function CalculatorInner() {
   }, []);
 
   useEffect(() => { fetchRate(currency); }, [currency, fetchRate]);
+  useEffect(() => { fetchMakes(lookupYear); }, []);  // load makes on mount
 
   const result = useMemo(() => {
     const p = parseFloat(price) || 0;
