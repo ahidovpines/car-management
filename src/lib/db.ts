@@ -16,6 +16,8 @@ if (process.env.DATABASE_PATH && !fs.existsSync(DB_PATH)) {
 declare global {
   // eslint-disable-next-line no-var
   var __db: Database.Database | undefined;
+  // eslint-disable-next-line no-var
+  var __dbMigrated: boolean | undefined;
 }
 
 export function getDb(): Database.Database {
@@ -23,12 +25,16 @@ export function getDb(): Database.Database {
     global.__db = new Database(DB_PATH);
     global.__db.pragma('journal_mode = WAL');
     global.__db.pragma('foreign_keys = ON');
-    initDb(global.__db);
+  }
+  if (!global.__dbMigrated) {
+    runMigrations(global.__db);
+    global.__dbMigrated = true;
   }
   return global.__db;
 }
 
-function initDb(db: Database.Database) {
+function runMigrations(db: Database.Database) {
+  // Core tables
   db.exec(`
     CREATE TABLE IF NOT EXISTS documents (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -73,14 +79,14 @@ function initDb(db: Database.Database) {
     );
   `);
 
-  // Migrations for columns added after initial schema
+  // Column migrations
   const cols = (db.prepare("PRAGMA table_info(vehicles)").all() as { name: string }[]).map(c => c.name);
   if (!cols.includes('invoice_number'))    db.exec("ALTER TABLE vehicles ADD COLUMN invoice_number TEXT");
   if (!cols.includes('purchase_currency')) db.exec("ALTER TABLE vehicles ADD COLUMN purchase_currency TEXT");
   if (!cols.includes('eta'))               db.exec("ALTER TABLE vehicles ADD COLUMN eta TEXT");
   if (!cols.includes('license_type'))      db.exec("ALTER TABLE vehicles ADD COLUMN license_type TEXT");
 
-  // EPA lookup cache
+  // EPA lookup cache tables
   db.exec(`
     CREATE TABLE IF NOT EXISTS epa_makes (
       year    INTEGER NOT NULL,
