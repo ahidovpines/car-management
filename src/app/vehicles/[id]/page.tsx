@@ -401,7 +401,7 @@ export default function VehicleDetailPage({ params }: { params: Promise<{ id: st
         <DocumentsSection
           vehicleId={vehicle.id}
           onStatusChange={(s) => setVehicle(v => v ? { ...v, status: s } : v)}
-          onVehicleUpdate={(updated) => setVehicle(updated as Vehicle)}
+          onVehicleUpdate={(updated) => setVehicle(updated as unknown as Vehicle)}
         />
 
         {vehicle.notes && (
