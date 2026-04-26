@@ -48,6 +48,36 @@ type VehicleWithMeta = Vehicle & { doc_count?: number };
 
 const STAGE_COLORS = ['bg-blue-500', 'bg-sky-400', 'bg-amber-400'];
 
+const COLOR_MAP: Record<string, string> = {
+  לבן: '#ffffff', white: '#ffffff',
+  שחור: '#1a1a1a', black: '#1a1a1a',
+  אפור: '#9ca3af', gray: '#9ca3af', grey: '#9ca3af',
+  כסף: '#c0c0c0', silver: '#c0c0c0',
+  אדום: '#ef4444', red: '#ef4444',
+  כחול: '#3b82f6', blue: '#3b82f6',
+  כחול_כהה: '#1e3a8a',
+  ירוק: '#22c55e', green: '#22c55e',
+  צהוב: '#eab308', yellow: '#eab308',
+  כתום: '#f97316', orange: '#f97316',
+  חום: '#92400e', brown: '#92400e',
+  בז: '#d4b896', beige: '#d4b896',
+  סגול: '#a855f7', purple: '#a855f7',
+  ורוד: '#ec4899', pink: '#ec4899',
+};
+
+function ColorDot({ color }: { color?: string | null }) {
+  if (!color) return null;
+  const lower = color.trim().toLowerCase().replace(/['"]/g, '');
+  const hex = COLOR_MAP[lower] || Object.entries(COLOR_MAP).find(([k]) => lower.includes(k))?.[1] || '#d1d5db';
+  const needsBorder = hex === '#ffffff' || hex === '#c0c0c0' || hex === '#d4b896';
+  return (
+    <span className="flex items-center gap-1 text-[11px] text-gray-500">
+      <span className={`inline-block w-3 h-3 rounded-full flex-shrink-0 ${needsBorder ? 'border border-gray-300' : ''}`} style={{ backgroundColor: hex }} />
+      {color}
+    </span>
+  );
+}
+
 function StageBar({ status }: { status: string }) {
   const progress = STATUS_PROGRESS[status] || 0;
   const total = PIPELINE_STATUSES.length;
@@ -89,6 +119,7 @@ function VehicleRow({ v }: { v: VehicleWithMeta }) {
             <div className="font-bold text-gray-900 text-sm truncate">{v.make} {v.model}</div>
             <div className="flex items-center gap-2 flex-wrap mt-0.5">
               {v.vin && <span className="text-[11px] font-mono text-gray-400 truncate max-w-[140px]">{v.vin}</span>}
+              {v.color && <ColorDot color={v.color} />}
               {v.assigned_to && <span className="text-[11px] text-blue-500 font-medium">{v.assigned_to}</span>}
               {v.eta && v.status !== 'הגיע' && v.status !== 'הגיע לארץ' && new Date(v.eta) > new Date() && <span className="text-[11px] text-gray-400">ETA: {v.eta.split('-').reverse().join('/')}</span>}
             </div>
@@ -123,8 +154,11 @@ function VehicleRow({ v }: { v: VehicleWithMeta }) {
             </div>
           )}
         </div>
-        <div className="font-mono text-[12px] text-gray-600 tracking-wider truncate bg-gray-50 rounded-lg px-2.5 py-2 border border-gray-100">
-          {v.vin || <span className="text-gray-300 font-sans">לא הוזן</span>}
+        <div className="flex flex-col gap-1">
+          <div className="font-mono text-[12px] text-gray-600 tracking-wider truncate bg-gray-50 rounded-lg px-2.5 py-2 border border-gray-100">
+            {v.vin || <span className="text-gray-300 font-sans">לא הוזן</span>}
+          </div>
+          {v.color && <ColorDot color={v.color} />}
         </div>
         <div>
           <span className={`inline-flex px-2.5 py-1 rounded-full text-[12px] font-semibold ${STATUS_COLORS[v.status] || 'bg-gray-100 text-gray-600'}`}>
