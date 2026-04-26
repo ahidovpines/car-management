@@ -2,9 +2,15 @@ import { NextResponse } from 'next/server';
 import { getDb } from '@/lib/db';
 import { Vehicle } from '@/lib/types';
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const db = getDb();
+    const { searchParams } = new URL(request.url);
+    const vin = searchParams.get('vin');
+    if (vin) {
+      const match = db.prepare('SELECT id, make, model, year, status FROM vehicles WHERE vin = ?').get(vin) as Vehicle | undefined;
+      return NextResponse.json(match || null);
+    }
     const vehicles = db.prepare(`
       SELECT v.*,
         (SELECT COUNT(*) FROM documents d WHERE d.vehicle_id = v.id) as doc_count

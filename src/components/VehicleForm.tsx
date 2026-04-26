@@ -46,9 +46,21 @@ export default function VehicleForm({ initial, vehicleId }: Props) {
   const [scanMsg, setScanMsg] = useState('');
   const [error, setError] = useState('');
   const [scannedFiles, setScannedFiles] = useState<Array<{ file: File; docType: string; label: string }>>([]);
+  const [dupVehicle, setDupVehicle] = useState<{ id: number; make: string; model: string; year?: number; status: string } | null>(null);
 
   const set = (k: keyof FormData, v: string | number | undefined) =>
     setForm(f => ({ ...f, [k]: v }));
+
+  async function checkDuplicateVin(vin: string) {
+    if (!vin || vin.length !== 17) { setDupVehicle(null); return; }
+    // Skip check when editing an existing vehicle with the same VIN
+    if (vehicleId) { setDupVehicle(null); return; }
+    const res = await fetch(`/api/vehicles?vin=${encodeURIComponent(vin)}`);
+    if (res.ok) {
+      const match = await res.json();
+      setDupVehicle(match);
+    }
+  }
 
   async function uploadDocuments(vid: number) {
     const STATUS_TRIGGERS: Record<string, string> = {
@@ -108,6 +120,7 @@ export default function VehicleForm({ initial, vehicleId }: Props) {
       const count = Object.keys(fields).length;
       if (count === 0) { setScanMsg('לא זוהו נתונים — נסה תמונה ברורה יותר'); return; }
       setForm(f => ({ ...f, ...fields }));
+      if (fields.vin) await checkDuplicateVin(fields.vin as string);
       const docType = _doc_type || 'other';
       const docLabel = DOC_CHECKLIST.find(d => d.type === docType)?.label || file.name;
       setScannedFiles(prev => {
@@ -184,7 +197,7 @@ export default function VehicleForm({ initial, vehicleId }: Props) {
             <input className={inputCls} value={form.color ?? ''} onChange={e => set('color', e.target.value)} placeholder="לבן, שחור..." />
           </Field>
           <Field label="מספר שלדה (VIN)">
-            <input className={`${inputCls} font-mono`} value={form.vin ?? ''} onChange={e => set('vin', e.target.value)} placeholder="1HGBH41JXMN109186" />
+            <input className={`${inputCls} font-mono`} value={form.vin ?? ''} onChange={e => set('vin', e.target.value)} onBlur={e => checkDuplicateVin(e.target.value)} placeholder="1HGBH41JXMN109186" />
           </Field>
         </div>
       </section>
@@ -293,6 +306,22 @@ export default function VehicleForm({ initial, vehicleId }: Props) {
       </section>
 
       {error && <p className="text-red-600 text-sm text-center">{error}</p>}
+
+      {dupVehicle && (
+        <div className="bg-red-50 border border-red-300 rounded-xl p-4 flex items-start gap-3">
+          <span className="text-red-500 text-xl flex-shrink-0">⚠️</span>
+          <div className="flex-1">
+            <p className="text-red-800 font-bold text-sm">רכב עם שלדה זו כבר קיים במערכת!</p>
+            <p className="text-red-600 text-sm mt-0.5">
+              {dupVehicle.make} {dupVehicle.model}{dupVehicle.year ? ` ${dupVehicle.year}` : ''} — סטטוס: {dupVehicle.status}
+            </p>
+            <a href={`/vehicles/${dupVehicle.id}`} target="_blank" rel="noopener noreferrer"
+              className="inline-block mt-2 text-xs text-red-700 underline font-semibold">
+              לחץ לצפייה ברכב הקיים ←
+            </a>
+          </div>
+        </div>
+      )}
 
       <div className="flex items-center justify-between pb-8">
         <button
