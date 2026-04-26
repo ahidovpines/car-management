@@ -126,6 +126,7 @@ export const STATUSES = [
   'בים',
   'הגיע לארץ',
   'הגיע',
+  'נמכר',
 ] as const;
 
 export const STATUS_PROGRESS: Record<string, number> = {
@@ -140,6 +141,7 @@ export const STATUS_COLORS: Record<string, string> = {
   'הגיע לארץ':  'bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-200',
   'הגיע':        'bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-200',
   'שולם וממתין לניירת':'bg-slate-50 text-slate-500 ring-1 ring-inset ring-slate-200',
+  'נמכר':        'bg-purple-50 text-purple-700 ring-1 ring-inset ring-purple-200',
 };
 
 export const STATUS_DOT: Record<string, string> = {
@@ -148,4 +150,5 @@ export const STATUS_DOT: Record<string, string> = {
   'הגיע לארץ':  'bg-orange-400',
   'הגיע':        'bg-green-400',
   'שולם וממתין לניירת':'bg-gray-300',
+  'נמכר':        'bg-purple-400',
 };

@@ -252,21 +252,23 @@ export default function Dashboard() {
     (v.dealer_name?.toLowerCase().includes(q)) ||
     (v.assigned_to?.toLowerCase().includes(q));
 
-  const waiting   = vehicles.filter(v => v.status === 'שולם וממתין לניירת' && matchSearch(v));
-  const pipeline  = vehicles.filter(v => PIPELINE_SET.has(v.status));
+  const active    = vehicles.filter(v => v.status !== 'נמכר');
+  const waiting   = active.filter(v => v.status === 'שולם וממתין לניירת' && matchSearch(v));
+  const pipeline  = active.filter(v => PIPELINE_SET.has(v.status));
   const zeir      = pipeline.filter(v => v.license_type === 'זעיר' && matchSearch(v));
   const akif      = pipeline.filter(v => v.license_type === 'עקיף' && matchSearch(v));
   const noLicense = pipeline.filter(v => !v.license_type && matchSearch(v));
-  const arrived   = vehicles.filter(v => v.status === 'הגיע' && matchSearch(v));
+  const arrived   = active.filter(v => v.status === 'הגיע' && matchSearch(v));
+  const sold      = vehicles.filter(v => v.status === 'נמכר' && matchSearch(v));
 
   const pipelineZeirCount = pipeline.filter(v => v.license_type === 'זעיר').length;
   const pipelineAkifCount = pipeline.filter(v => v.license_type === 'עקיף').length;
 
   const stats = [
-    { label: 'סה"כ פעיל',       value: vehicles.filter(v => v.status !== 'הגיע').length,                         color: 'text-gray-900',    iconBg: 'bg-gray-100',    Icon: Package,      iconColor: 'text-gray-600'   },
+    { label: 'סה"כ פעיל',       value: active.filter(v => v.status !== 'הגיע').length,                          color: 'text-gray-900',    iconBg: 'bg-gray-100',    Icon: Package,      iconColor: 'text-gray-600'   },
     { label: 'בדרך',             value: pipeline.length,                                                            color: 'text-blue-600',    iconBg: 'bg-blue-50',     Icon: Truck,        iconColor: 'text-blue-500'   },
-    { label: 'ממתינים לניירת',   value: vehicles.filter(v => v.status === 'שולם וממתין לניירת').length,           color: 'text-amber-500',   iconBg: 'bg-amber-50',    Icon: Clock,        iconColor: 'text-amber-500'  },
-    { label: 'הגיעו',            value: vehicles.filter(v => v.status === 'הגיע').length,                          color: 'text-emerald-600', iconBg: 'bg-emerald-50',  Icon: CheckCircle2, iconColor: 'text-emerald-500'},
+    { label: 'ממתינים לניירת',   value: active.filter(v => v.status === 'שולם וממתין לניירת').length,             color: 'text-amber-500',   iconBg: 'bg-amber-50',    Icon: Clock,        iconColor: 'text-amber-500'  },
+    { label: 'הגיעו',            value: active.filter(v => v.status === 'הגיע').length,                            color: 'text-emerald-600', iconBg: 'bg-emerald-50',  Icon: CheckCircle2, iconColor: 'text-emerald-500'},
   ];
 
   return (
@@ -376,6 +378,7 @@ export default function Dashboard() {
             )}
 
             <SectionTable vehicles={arrived} title="✅ הגיעו" headerColor="bg-emerald-50 text-emerald-800" defaultOpen={true} />
+            <SectionTable vehicles={sold} title="🟣 נמכרו" headerColor="bg-purple-50 text-purple-800" defaultOpen={false} />
           </>
         )}
       </main>

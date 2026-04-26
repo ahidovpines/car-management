@@ -278,6 +278,18 @@ export default function VehicleDetailPage({ params }: { params: Promise<{ id: st
                 <ChevronRight className="w-3 h-3" /> החזר לשוחרר
               </button>
             )}
+            {vehicle.status !== 'נמכר' && (
+              <button onClick={() => updateStatus('נמכר')} disabled={updatingStatus}
+                className="flex items-center gap-1 text-xs text-white bg-purple-600 px-3 py-1.5 rounded-lg hover:bg-purple-700 disabled:opacity-40 font-semibold mr-auto">
+                🟣 סמן כנמכר
+              </button>
+            )}
+            {vehicle.status === 'נמכר' && (
+              <button onClick={() => updateStatus('הגיע')} disabled={updatingStatus}
+                className="flex items-center gap-1 text-xs text-gray-500 border border-gray-200 px-3 py-1.5 rounded-lg hover:border-gray-400 disabled:opacity-40 font-medium">
+                <ChevronRight className="w-3 h-3" /> בטל מכירה
+              </button>
+            )}
           </div>
         </div>
 

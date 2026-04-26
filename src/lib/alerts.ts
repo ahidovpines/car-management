@@ -11,7 +11,7 @@ export function calculateAlerts(vehicles: (Vehicle & { doc_count?: number })[]):
   today.setHours(0, 0, 0, 0);
 
   for (const vehicle of vehicles) {
-    if (vehicle.status === 'הגיע') continue;
+    if (vehicle.status === 'הגיע' || vehicle.status === 'נמכר') continue;
     const name = `${vehicle.make} ${vehicle.model}`;
 
     if (vehicle.status === 'שולם וממתין לניירת' && !vehicle.doc_count) {
