@@ -84,9 +84,16 @@ Invoice rules:
 - For model like "MERCEDES BENZ - CLE53": make="Mercedes-Benz", model="CLE53".
 - Only extract "year" (model year) from invoices — never manufacture_month/manufacture_year.
 
-Import license rules:
-- import_license = מספר האישור, import_license_expiry = סיום תוקף in ISO format.
-- Also extract: vin, model, dealer_name, manufacture_year, manufacture_month.
+Import license rules (Israeli מסלול יבוא / רישיון יבוא):
+- import_license = "מספר אישור" field value (e.g. "9401261041").
+- import_license_expiry = "סיום תוקף אישור" field, converted to ISO format YYYY-MM-DD.
+- manufacture_year = "שנת ייצור" field (4-digit year, e.g. 2025). THIS IS THE MOST IMPORTANT FIELD — always extract it.
+- manufacture_month = "חודש ייצור" field (number 1-12, e.g. 10). THIS IS THE MOST IMPORTANT FIELD — always extract it.
+- vin = "מספר שלדה" field (17-char VIN, e.g. "WUAZZZGY0TA905451").
+- make + model = from "תיאור טובין" field (e.g. "AUDI RS3" → make="Audi", model="RS3").
+- dealer_name = "שם ספק" field.
+- dealer_country = "ארץ ייצור" or "ארץ קניה" field.
+- year = same as manufacture_year.
 Return ONLY the JSON object, no explanation, no markdown.`;
 
 const SUPPORTED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
