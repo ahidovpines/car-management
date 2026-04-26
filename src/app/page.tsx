@@ -90,7 +90,7 @@ function VehicleRow({ v }: { v: VehicleWithMeta }) {
             <div className="flex items-center gap-2 flex-wrap mt-0.5">
               {v.vin && <span className="text-[11px] font-mono text-gray-400 truncate max-w-[140px]">{v.vin}</span>}
               {v.assigned_to && <span className="text-[11px] text-blue-500 font-medium">{v.assigned_to}</span>}
-              {v.eta && <span className="text-[11px] text-gray-400">ETA: {v.eta.split('-').reverse().join('/')}</span>}
+              {v.eta && v.status !== 'הגיע' && v.status !== 'הגיע לארץ' && new Date(v.eta) > new Date() && <span className="text-[11px] text-gray-400">ETA: {v.eta.split('-').reverse().join('/')}</span>}
             </div>
           </div>
         </div>
