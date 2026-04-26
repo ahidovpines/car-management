@@ -189,6 +189,29 @@ function VehicleRow({ v }: { v: VehicleWithMeta }) {
   );
 }
 
+function SoldSection({ vehicles }: { vehicles: VehicleWithMeta[] }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+      <button onClick={() => setOpen(v => !v)}
+        className="w-full flex items-center justify-between px-5 py-3.5 bg-purple-50 text-purple-800 hover:bg-purple-100 transition-colors">
+        <span className="font-bold text-sm">🟣 נמכרו</span>
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-semibold opacity-70 bg-white/60 px-2.5 py-0.5 rounded-full">{vehicles.length} רכבים</span>
+          {open ? <ChevronUp className="w-4 h-4 opacity-50" /> : <ChevronDown className="w-4 h-4 opacity-50" />}
+        </div>
+      </button>
+      {open && (
+        vehicles.length === 0
+          ? <div className="py-8 text-center text-sm text-gray-400">אין רכבים שנמכרו עדיין</div>
+          : <div className="divide-y divide-gray-100">
+              {vehicles.map(v => <VehicleRow key={v.id} v={v} />)}
+            </div>
+      )}
+    </div>
+  );
+}
+
 function SectionTable({
   vehicles, title, headerColor, defaultOpen = true,
 }: {
@@ -295,8 +318,8 @@ export default function Dashboard() {
   const arrived   = active.filter(v => v.status === 'הגיע' && matchSearch(v));
   const sold      = vehicles.filter(v => v.status === 'נמכר' && matchSearch(v));
 
-  const pipelineZeirCount = pipeline.filter(v => v.license_type === 'זעיר').length;
-  const pipelineAkifCount = pipeline.filter(v => v.license_type === 'עקיף').length;
+  const pipelineZeirCount = active.filter(v => v.license_type === 'זעיר').length;
+  const pipelineAkifCount = active.filter(v => v.license_type === 'עקיף').length;
 
   const stats = [
     { label: 'סה"כ פעיל',       value: active.filter(v => v.status !== 'הגיע').length,                          color: 'text-gray-900',    iconBg: 'bg-gray-100',    Icon: Package,      iconColor: 'text-gray-600'   },
@@ -412,7 +435,7 @@ export default function Dashboard() {
             )}
 
             <SectionTable vehicles={arrived} title="✅ הגיעו" headerColor="bg-emerald-50 text-emerald-800" defaultOpen={true} />
-            <SectionTable vehicles={sold} title="🟣 נמכרו" headerColor="bg-purple-50 text-purple-800" defaultOpen={false} />
+            <SoldSection vehicles={sold} />
           </>
         )}
       </main>
