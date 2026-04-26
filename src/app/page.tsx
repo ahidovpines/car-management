@@ -6,7 +6,7 @@ import { Vehicle, STATUS_COLORS, STATUS_PROGRESS, STATUS_DOT, PIPELINE_STATUSES,
 import { calculateAlerts, getDaysToRegistration } from '@/lib/alerts';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { AlertTriangle, Plus, Search, RefreshCw, Ship, ExternalLink, ChevronLeft, Car, ChevronDown, ChevronUp, Package, Truck, Clock, CheckCircle2, Calculator } from 'lucide-react';
+import { AlertTriangle, Plus, Search, RefreshCw, Ship, ExternalLink, ChevronLeft, Car, ChevronDown, ChevronUp, Package, Truck, Clock, CheckCircle2, Calculator, Tag } from 'lucide-react';
 import { Alert } from '@/lib/types';
 
 function AlertsSection({ alerts }: { alerts: Alert[] }) {
@@ -326,6 +326,7 @@ export default function Dashboard() {
     { label: 'בדרך',             value: pipeline.length,                                                            color: 'text-blue-600',    iconBg: 'bg-blue-50',     Icon: Truck,        iconColor: 'text-blue-500'   },
     { label: 'ממתינים לניירת',   value: active.filter(v => v.status === 'שולם וממתין לניירת').length,             color: 'text-amber-500',   iconBg: 'bg-amber-50',    Icon: Clock,        iconColor: 'text-amber-500'  },
     { label: 'הגיעו',            value: active.filter(v => v.status === 'הגיע').length,                            color: 'text-emerald-600', iconBg: 'bg-emerald-50',  Icon: CheckCircle2, iconColor: 'text-emerald-500'},
+    { label: 'נמכרו',            value: vehicles.filter(v => v.status === 'נמכר').length,                         color: 'text-purple-600',  iconBg: 'bg-purple-50',   Icon: Tag,          iconColor: 'text-purple-500' },
   ];
 
   return (
@@ -364,7 +365,7 @@ export default function Dashboard() {
         {alerts.length > 0 && <AlertsSection alerts={alerts} />}
 
         {/* Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
           {stats.map(s => (
             <div key={s.label} className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm flex items-center gap-4">
               <div className={`w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 ${s.iconBg}`}>
