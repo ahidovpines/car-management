@@ -11,7 +11,10 @@ export async function GET(_req: Request, ctx: RouteContext<'/api/vehicles/[id]/d
     const doc = db.prepare('SELECT * FROM documents WHERE id = ?').get(docId) as VehicleDocument | undefined;
     if (!doc) return NextResponse.json({ error: 'לא נמצא' }, { status: 404 });
 
-    const absPath = path.join(process.cwd(), doc.file_path);
+    // file_path is absolute when stored on persistent volume, relative otherwise
+    const absPath = path.isAbsolute(doc.file_path)
+      ? doc.file_path
+      : path.join(process.cwd(), doc.file_path);
     const data = await readFile(absPath);
     const ext = doc.file_name.split('.').pop()?.toLowerCase();
     const contentType = ext === 'pdf' ? 'application/pdf'
@@ -37,7 +40,9 @@ export async function DELETE(_req: Request, ctx: RouteContext<'/api/vehicles/[id
     const doc = db.prepare('SELECT * FROM documents WHERE id = ?').get(docId) as VehicleDocument | undefined;
     if (!doc) return NextResponse.json({ error: 'לא נמצא' }, { status: 404 });
 
-    const absPath = path.join(process.cwd(), doc.file_path);
+    const absPath = path.isAbsolute(doc.file_path)
+      ? doc.file_path
+      : path.join(process.cwd(), doc.file_path);
     await unlink(absPath).catch(() => {});
     db.prepare('DELETE FROM documents WHERE id = ?').run(docId);
     return NextResponse.json({ success: true });

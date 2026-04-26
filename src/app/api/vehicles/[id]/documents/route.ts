@@ -26,7 +26,10 @@ export async function POST(request: Request, ctx: RouteContext<'/api/vehicles/[i
 
     if (!file) return NextResponse.json({ error: 'לא נשלח קובץ' }, { status: 400 });
 
-    const uploadDir = path.join(process.cwd(), 'data', 'uploads', id);
+    const baseDir = process.env.DATABASE_PATH
+      ? path.join(path.dirname(process.env.DATABASE_PATH), 'uploads')
+      : path.join(process.cwd(), 'data', 'uploads');
+    const uploadDir = path.join(baseDir, id);
     await mkdir(uploadDir, { recursive: true });
 
     const safeName = `${Date.now()}-${file.name.replace(/[^a-zA-Z0-9._\u0590-\u05FF-]/g, '_')}`;
@@ -34,7 +37,9 @@ export async function POST(request: Request, ctx: RouteContext<'/api/vehicles/[i
     const buffer = Buffer.from(await file.arrayBuffer());
     await writeFile(filePath, buffer);
 
-    const relPath = path.join('data', 'uploads', id, safeName);
+    const relPath = process.env.DATABASE_PATH
+      ? path.join(path.dirname(process.env.DATABASE_PATH), 'uploads', id, safeName)
+      : path.join('data', 'uploads', id, safeName);
 
     const db = getDb();
     const result = db.prepare(`
