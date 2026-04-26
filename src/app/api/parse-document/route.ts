@@ -73,7 +73,10 @@ Door/VIN sticker rules:
 - VIN on door stickers appears on the LAST line, often after "GWVR/PNBV" label or below a barcode.
 
 COC rules:
-- vin = field 0.10 "Fahrzeug-Identifizierungsnummer" (17-char). Manufacture date = "Datum der Herstellung des Fahrzeugs". make = field 0.1, model = field 0.2.
+- vin = field 0.10 "Fahrzeug-Identifizierungsnummer" (17-char).
+- Manufacture date = field labeled "Datum der Herstellung des Fahrzeugs" OR "Produktionsdatum des Fahrzeugs" (both mean production date). Parse as manufacture_month + manufacture_year.
+- make = field 0.1, model = field 0.2.
+- year = manufacture_year (or model year if stated separately).
 
 Invoice rules:
 - dealer_name = company name (strip leading numbers/hyphens, e.g. "9113-9279 QUEBEC INC." → "QUEBEC INC.").

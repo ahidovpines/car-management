@@ -15,12 +15,18 @@ const STATUS_TRIGGERS: Record<string, string> = {
 
 const STAGE_ORDER: Array<keyof typeof DOC_STAGE_LABELS> = ['purchase', 'shipping', 'customs', 'licensing'];
 
+const VEHICLE_FIELDS = ['vin','make','model','year','manufacture_month','manufacture_year','color',
+  'dealer_name','dealer_country','purchase_price','purchase_currency','purchase_date',
+  'invoice_number','shipping_company','vessel_name','container_number','port_of_loading',
+  'port_of_discharge','carrier_booking_no','release_agent','bl_number','import_license','import_license_expiry'];
+
 interface Props {
   vehicleId: number;
   onStatusChange?: (newStatus: string) => void;
+  onVehicleUpdate?: (fields: Record<string, unknown>) => void;
 }
 
-export default function DocumentsSection({ vehicleId, onStatusChange }: Props) {
+export default function DocumentsSection({ vehicleId, onStatusChange, onVehicleUpdate }: Props) {
   const [docs, setDocs] = useState<VehicleDocument[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
@@ -78,6 +84,24 @@ export default function DocumentsSection({ vehicleId, onStatusChange }: Props) {
       if (res.ok) {
         const data = await res.json();
         if (data._doc_type) detectedType = data._doc_type;
+        // Apply extracted vehicle fields back to the vehicle
+        const vehicleFields: Record<string, unknown> = {};
+        for (const key of VEHICLE_FIELDS) {
+          if (data[key] !== undefined && data[key] !== null) vehicleFields[key] = data[key];
+        }
+        if (Object.keys(vehicleFields).length > 0) {
+          const updateRes = await fetch(`/api/vehicles/${vehicleId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ _mergeOnly: true, ...vehicleFields }),
+          });
+          if (updateRes.ok) {
+            const updated = await updateRes.json();
+            onVehicleUpdate?.(updated);
+            setStatusMsg(`נתוני הרכב עודכנו מהמסמך`);
+            setTimeout(() => setStatusMsg(''), 4000);
+          }
+        }
       }
     } catch {}
     setScanning(false);

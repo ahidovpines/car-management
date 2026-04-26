@@ -27,6 +27,18 @@ export async function PUT(request: Request, ctx: RouteContext<'/api/vehicles/[id
       return NextResponse.json(vehicle);
     }
 
+    if (data._mergeOnly) {
+      // Only update fields that are explicitly provided (don't overwrite existing data)
+      const { _mergeOnly, ...fields } = data;
+      void _mergeOnly;
+      const setClauses = Object.keys(fields).map(k => `${k} = @${k}`).join(', ');
+      if (setClauses) {
+        db.prepare(`UPDATE vehicles SET ${setClauses} WHERE id = @id`).run({ ...fields, id });
+      }
+      const vehicle = db.prepare('SELECT * FROM vehicles WHERE id = ?').get(id);
+      return NextResponse.json(vehicle);
+    }
+
     db.prepare(`
       UPDATE vehicles SET
         vin = @vin, make = @make, model = @model, year = @year,

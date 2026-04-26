@@ -386,7 +386,11 @@ export default function VehicleDetailPage({ params }: { params: Promise<{ id: st
           blTrackingUrl={vehicle.bl_tracking_url}
         />
 
-        <DocumentsSection vehicleId={vehicle.id} onStatusChange={(s) => setVehicle(v => v ? { ...v, status: s } : v)} />
+        <DocumentsSection
+          vehicleId={vehicle.id}
+          onStatusChange={(s) => setVehicle(v => v ? { ...v, status: s } : v)}
+          onVehicleUpdate={(updated) => setVehicle(updated as Vehicle)}
+        />
 
         {vehicle.notes && (
           <SectionCard title="הערות" icon={<span className="text-base">📝</span>}>
