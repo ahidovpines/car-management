@@ -1,6 +1,11 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
+// All routes read from SQLite on every request — never serve a stale shell.
+// Without this, Next.js pre-renders the dashboard HTML at build time and
+// reuses it across deploys (the route cache survives even after restart).
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: "ניהול רכבים | אביחי פינס סחר",
   description: "מערכת ניהול רכבים מיובאים",
