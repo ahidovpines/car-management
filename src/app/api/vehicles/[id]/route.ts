@@ -53,7 +53,8 @@ export async function PUT(request: Request, ctx: RouteContext<'/api/vehicles/[id
         port_of_loading = @port_of_loading, port_of_discharge = @port_of_discharge,
         carrier_booking_no = @carrier_booking_no, release_agent = @release_agent,
         notes = @notes, eta = @eta,
-        invoice_number = @invoice_number, purchase_currency = @purchase_currency
+        invoice_number = @invoice_number, purchase_currency = @purchase_currency,
+        importer = @importer
       WHERE id = @id
     `).run({
       id,
@@ -86,6 +87,7 @@ export async function PUT(request: Request, ctx: RouteContext<'/api/vehicles/[id
       eta: data.eta || null,
       invoice_number: data.invoice_number || null,
       purchase_currency: data.purchase_currency || null,
+      importer: data.importer || 'AP',
     });
 
     const vehicle = db.prepare('SELECT * FROM vehicles WHERE id = ?').get(id);

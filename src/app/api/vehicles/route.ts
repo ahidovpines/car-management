@@ -11,11 +11,18 @@ export async function GET(request: Request) {
       const match = db.prepare('SELECT id, make, model, year, status FROM vehicles WHERE vin = ?').get(vin) as Vehicle | undefined;
       return NextResponse.json(match || null);
     }
-    const vehicles = db.prepare(`
-      SELECT v.*,
-        (SELECT COUNT(*) FROM documents d WHERE d.vehicle_id = v.id) as doc_count
-      FROM vehicles v ORDER BY v.created_at DESC
-    `).all() as (Vehicle & { doc_count: number })[];
+    const importer = searchParams.get('importer');
+    const vehicles = importer
+      ? db.prepare(`
+          SELECT v.*,
+            (SELECT COUNT(*) FROM documents d WHERE d.vehicle_id = v.id) as doc_count
+          FROM vehicles v WHERE v.importer = ? ORDER BY v.created_at DESC
+        `).all(importer) as (Vehicle & { doc_count: number })[]
+      : db.prepare(`
+          SELECT v.*,
+            (SELECT COUNT(*) FROM documents d WHERE d.vehicle_id = v.id) as doc_count
+          FROM vehicles v ORDER BY v.created_at DESC
+        `).all() as (Vehicle & { doc_count: number })[];
     return NextResponse.json(vehicles);
   } catch (e) {
     console.error(e);
@@ -35,14 +42,14 @@ export async function POST(request: Request) {
         status, license_type, bl_number, bl_tracking_url, import_license, import_license_expiry,
         assigned_to, shipping_company, vessel_name, container_number,
         port_of_loading, port_of_discharge, carrier_booking_no, release_agent, notes, eta,
-        invoice_number, purchase_currency
+        invoice_number, purchase_currency, importer
       ) VALUES (
         @vin, @make, @model, @year, @manufacture_month, @manufacture_year,
         @color, @dealer_name, @dealer_country, @purchase_price, @purchase_date,
         @status, @license_type, @bl_number, @bl_tracking_url, @import_license, @import_license_expiry,
         @assigned_to, @shipping_company, @vessel_name, @container_number,
         @port_of_loading, @port_of_discharge, @carrier_booking_no, @release_agent, @notes, @eta,
-        @invoice_number, @purchase_currency
+        @invoice_number, @purchase_currency, @importer
       )
     `);
 
@@ -76,6 +83,7 @@ export async function POST(request: Request) {
       eta: data.eta || null,
       invoice_number: data.invoice_number || null,
       purchase_currency: data.purchase_currency || null,
+      importer: data.importer || 'AP',
     });
 
     const vehicle = db.prepare('SELECT * FROM vehicles WHERE id = ?').get(result.lastInsertRowid);

@@ -1,7 +1,15 @@
 import { NextResponse } from 'next/server';
 import Anthropic from '@anthropic-ai/sdk';
 
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+let _client: Anthropic | null = null;
+function getClient() {
+  if (!_client) {
+    const apiKey = process.env.ANTHROPIC_API_KEY;
+    if (!apiKey) throw new Error('ANTHROPIC_API_KEY is not set');
+    _client = new Anthropic({ apiKey });
+  }
+  return _client;
+}
 
 const SYSTEM_PROMPT = `You are a vehicle import document parser. Extract structured data from images or PDFs of:
 - Supplier invoices (e.g. Quebec Inc., US dealers) / חשבוניות ספק
@@ -127,6 +135,7 @@ export async function POST(request: Request) {
       ? { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: base64 } }
       : { type: 'image', source: { type: 'base64', media_type: imageMediaType, data: base64 } };
 
+    const client = getClient();
     const response = await client.messages.create({
       model: 'claude-sonnet-4-6',
       max_tokens: 1024,

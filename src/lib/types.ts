@@ -29,8 +29,16 @@ export interface Vehicle {
   purchase_currency?: string;
   notes?: string;
   eta?: string;
+  importer?: Importer;
   created_at: string;
 }
+
+export type Importer = 'AP' | 'YOSEF';
+
+export const IMPORTERS: { value: Importer; label: string; shortLabel: string }[] = [
+  { value: 'AP',    label: 'A.P TRADE CARS', shortLabel: 'A.P' },
+  { value: 'YOSEF', label: 'יוסף נעים',       shortLabel: 'יוסף נעים' },
+];
 
 const TRACKING_URLS: Record<string, string> = {
   'ZIM': 'https://www.zim.com/tools/track-a-shipment?consnumber=',
@@ -51,7 +59,7 @@ export function getTrackingUrl(company?: string, container?: string): string | n
 }
 
 export type AlertSeverity = 'critical' | 'warning' | 'info';
-export type AlertType = 'import_license' | 'registration' | 'waiting_docs';
+export type AlertType = 'import_license' | 'registration' | 'waiting_docs' | 'arrived_to_country';
 
 export interface Alert {
   vehicle_id: number;

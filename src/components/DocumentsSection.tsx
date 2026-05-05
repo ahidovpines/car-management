@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { VehicleDocument, DOC_CHECKLIST, DOC_STAGE_LABELS, calcDocProgress } from '@/lib/types';
-import { Upload, Trash2, Eye, Loader2, FileText, ScanLine, CheckCircle2, Plus } from 'lucide-react';
+import { Upload, Trash2, Eye, Loader2, FileText, ScanLine, CheckCircle2, Plus, AlertTriangle } from 'lucide-react';
 
 const STATUS_TRIGGERS: Record<string, string> = {
   bl:              'בספינה',
@@ -34,6 +34,7 @@ export default function DocumentsSection({ vehicleId, onStatusChange, onVehicleU
   const [showAdd, setShowAdd] = useState(false);
   const [uploadType, setUploadType] = useState('other');
   const [statusMsg, setStatusMsg] = useState('');
+  const [errorMsg, setErrorMsg] = useState('');
 
   async function load() {
     const res = await fetch(`/api/vehicles/${vehicleId}/documents`);
@@ -122,6 +123,30 @@ export default function DocumentsSection({ vehicleId, onStatusChange, onVehicleU
     setDocs(d => d.filter(doc => doc.id !== id));
   }
 
+  async function viewDoc(docId: number) {
+    // Open tab synchronously so mobile browsers don't block it
+    const newTab = window.open('', '_blank');
+    try {
+      const res = await fetch(`/api/vehicles/${vehicleId}/documents/${docId}`);
+      if (!res.ok) {
+        newTab?.close();
+        const j = await res.json().catch(() => ({} as { error?: string }));
+        setErrorMsg(j.error || 'שגיאה בטעינת הקובץ');
+        setTimeout(() => setErrorMsg(''), 6000);
+        return;
+      }
+      const blob = await res.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      if (newTab) newTab.location.href = objectUrl;
+      else window.open(objectUrl, '_blank');
+      setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000);
+    } catch {
+      newTab?.close();
+      setErrorMsg('שגיאה בטעינת הקובץ');
+      setTimeout(() => setErrorMsg(''), 6000);
+    }
+  }
+
   const progress = calcDocProgress(docs);
 
   const progressColor = progress.pct === 100 ? 'from-emerald-400 to-emerald-500'
@@ -171,6 +196,11 @@ export default function DocumentsSection({ vehicleId, onStatusChange, onVehicleU
         {statusMsg && (
           <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm px-3 py-2.5 rounded-xl font-medium">
             <CheckCircle2 className="w-4 h-4 flex-shrink-0 text-emerald-500" /> {statusMsg}
+          </div>
+        )}
+        {errorMsg && (
+          <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-800 text-sm px-3 py-2.5 rounded-xl font-medium">
+            <AlertTriangle className="w-4 h-4 flex-shrink-0 text-red-500" /> {errorMsg}
           </div>
         )}
 
@@ -230,11 +260,10 @@ export default function DocumentsSection({ vehicleId, onStatusChange, onVehicleU
                             {doc.file_name.length > 35 ? doc.file_name.slice(0, 33) + '…' : doc.file_name}
                           </span>
                         </div>
-                        <a href={`/api/vehicles/${vehicleId}/documents/${doc.id}`}
-                          target="_blank" rel="noopener noreferrer"
+                        <button onClick={() => viewDoc(doc.id)}
                           className="text-blue-400 hover:text-blue-600 p-1.5 rounded-lg hover:bg-blue-50">
                           <Eye className="w-4 h-4" />
-                        </a>
+                        </button>
                         <button onClick={() => deleteDoc(doc.id)}
                           className="text-gray-300 hover:text-red-500 p-1.5 rounded-lg hover:bg-red-50">
                           <Trash2 className="w-4 h-4" />

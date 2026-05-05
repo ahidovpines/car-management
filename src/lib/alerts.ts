@@ -14,6 +14,35 @@ export function calculateAlerts(vehicles: (Vehicle & { doc_count?: number })[]):
     if (vehicle.status === 'הגיע' || vehicle.status === 'נמכר') continue;
     const name = `${vehicle.make} ${vehicle.model}`;
 
+    // Arrived at port — kick off customs broker contact, mark 'הגיע' manually after release.
+    if (vehicle.status === 'הגיע לארץ') {
+      let daysSinceEta = 0;
+      if (vehicle.eta) {
+        const eta = new Date(vehicle.eta);
+        eta.setHours(0, 0, 0, 0);
+        daysSinceEta = Math.max(0, Math.floor((today.getTime() - eta.getTime()) / 86400000));
+      }
+      const agent = vehicle.release_agent?.trim();
+      const daySuffix =
+        daysSinceEta === 0
+          ? 'הגיע היום'
+          : daysSinceEta === 1
+            ? 'הגיע אתמול'
+            : `${daysSinceEta} ימים בנמל`;
+      const message = agent
+        ? `🇮🇱 הגיע לארץ · ${daySuffix} — צור קשר עם ${agent} לזירוז שחרור`
+        : `🇮🇱 הגיע לארץ · ${daySuffix} — צור קשר עם עמיל המכס לזירוז שחרור`;
+      alerts.push({
+        vehicle_id: vehicle.id,
+        vehicle_name: name,
+        vin: vehicle.vin,
+        type: 'arrived_to_country',
+        message,
+        days_remaining: -daysSinceEta, // negative → sorts to top
+        severity: daysSinceEta >= 5 ? 'critical' : daysSinceEta >= 2 ? 'warning' : 'info',
+      });
+    }
+
     if (vehicle.status === 'שולם וממתין לניירת' && !vehicle.doc_count) {
       const created = new Date(vehicle.created_at);
       created.setHours(0, 0, 0, 0);

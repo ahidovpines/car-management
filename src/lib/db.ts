@@ -85,6 +85,10 @@ function runMigrations(db: Database.Database) {
   if (!cols.includes('purchase_currency')) db.exec("ALTER TABLE vehicles ADD COLUMN purchase_currency TEXT");
   if (!cols.includes('eta'))               db.exec("ALTER TABLE vehicles ADD COLUMN eta TEXT");
   if (!cols.includes('license_type'))      db.exec("ALTER TABLE vehicles ADD COLUMN license_type TEXT");
+  if (!cols.includes('importer')) {
+    db.exec("ALTER TABLE vehicles ADD COLUMN importer TEXT NOT NULL DEFAULT 'AP'");
+    db.exec("UPDATE vehicles SET importer = 'AP' WHERE importer IS NULL OR importer = ''");
+  }
 
   // EPA lookup cache tables
   db.exec(`

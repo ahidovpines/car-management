@@ -2,11 +2,11 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
-import { Vehicle, STATUS_COLORS, STATUS_PROGRESS, STATUS_DOT, PIPELINE_STATUSES, getTrackingUrl } from '@/lib/types';
+import { Vehicle, STATUS_COLORS, STATUS_PROGRESS, STATUS_DOT, PIPELINE_STATUSES, getTrackingUrl, Importer } from '@/lib/types';
 import { calculateAlerts, getDaysToRegistration } from '@/lib/alerts';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { AlertTriangle, Plus, Search, RefreshCw, Ship, ExternalLink, ChevronLeft, Car, ChevronDown, ChevronUp, Package, Truck, Clock, CheckCircle2, Calculator, Tag } from 'lucide-react';
+import { AlertTriangle, Plus, Search, RefreshCw, Ship, ExternalLink, ChevronLeft, Car, ChevronDown, ChevronUp, Truck, Clock, CheckCircle2, Calculator, Tag } from 'lucide-react';
 import { Alert } from '@/lib/types';
 
 function AlertsSection({ alerts }: { alerts: Alert[] }) {
@@ -260,26 +260,32 @@ function SectionTable({
 }
 
 type LicenseTab = 'הכל' | 'זעיר' | 'עקיף';
+type StageTab = 'הכל' | 'בנמל מקור' | 'בים' | 'הגיע לארץ';
 
 export default function Dashboard() {
   const [vehicles, setVehicles] = useState<VehicleWithMeta[]>([]);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [licenseTab, setLicenseTab] = useState<LicenseTab>('הכל');
+  const [stageTab, setStageTab] = useState<StageTab>('הכל');
   const [syncing, setSyncing] = useState(false);
   const [syncResult, setSyncResult] = useState<string | null>(null);
   const [isMobile, setIsMobile] = useState(false);
+  const [importer, setImporter] = useState<Importer>('AP');
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 768);
     check();
     window.addEventListener('resize', check);
+    const saved = localStorage.getItem('importer') as Importer | null;
+    if (saved === 'AP' || saved === 'YOSEF') setImporter(saved);
     return () => window.removeEventListener('resize', check);
   }, []);
+  useEffect(() => { localStorage.setItem('importer', importer); }, [importer]);
 
   const load = useCallback(() => {
     setLoading(true);
-    fetch('/api/vehicles').then(r => r.json()).then(data => { setVehicles(data); setLoading(false); });
-  }, []);
+    fetch(`/api/vehicles?importer=${importer}`).then(r => r.json()).then(data => { setVehicles(data); setLoading(false); });
+  }, [importer]);
 
   const syncAll = useCallback(async () => {
     setSyncing(true);
@@ -309,31 +315,62 @@ export default function Dashboard() {
     (v.dealer_name?.toLowerCase().includes(q)) ||
     (v.assigned_to?.toLowerCase().includes(q));
 
-  const active    = vehicles.filter(v => v.status !== 'נמכר');
-  const waiting   = active.filter(v => v.status === 'שולם וממתין לניירת' && matchSearch(v));
-  const pipeline  = active.filter(v => PIPELINE_SET.has(v.status));
-  const zeir      = pipeline.filter(v => v.license_type === 'זעיר' && matchSearch(v));
-  const akif      = pipeline.filter(v => v.license_type === 'עקיף' && matchSearch(v));
+  // License tab acts as a hard filter across ALL sections (waiting / pipeline / arrived / sold).
+  // 'הכל' = no filter; 'זעיר' / 'עקיף' = include only vehicles whose license_type matches.
+  const matchLicense = (v: VehicleWithMeta) => licenseTab === 'הכל' || v.license_type === licenseTab;
+
+  const scoped   = vehicles.filter(matchLicense);
+  const active   = scoped.filter(v => v.status !== 'נמכר');
+  const waiting  = active.filter(v => v.status === 'שולם וממתין לניירת' && matchSearch(v));
+  const pipelineFull = active.filter(v => PIPELINE_SET.has(v.status));
+  // Stage tab narrows the in-transit list to one shipping stage.
+  const matchStage = (v: VehicleWithMeta) => stageTab === 'הכל' || v.status === stageTab;
+  const pipeline = pipelineFull.filter(matchStage);
+  const zeir     = pipeline.filter(v => v.license_type === 'זעיר' && matchSearch(v));
+  const akif     = pipeline.filter(v => v.license_type === 'עקיף' && matchSearch(v));
   const noLicense = pipeline.filter(v => !v.license_type && matchSearch(v));
-  const arrived   = active.filter(v => v.status === 'הגיע' && matchSearch(v));
-  const sold      = vehicles.filter(v => v.status === 'נמכר' && matchSearch(v));
+  const arrived  = active.filter(v => v.status === 'הגיע' && matchSearch(v));
+  const sold     = scoped.filter(v => v.status === 'נמכר' && matchSearch(v));
 
-  const pipelineZeirCount = active.filter(v => v.license_type === 'זעיר').length;
-  const pipelineAkifCount = active.filter(v => v.license_type === 'עקיף').length;
+  // Tab pill counts are always against the FULL inventory, not the current scope.
+  const pipelineZeirCount = vehicles.filter(v => v.license_type === 'זעיר').length;
+  const pipelineAkifCount = vehicles.filter(v => v.license_type === 'עקיף').length;
+  // Stage chip counts reflect the active scope (post-license, pre-search) so the totals
+  // stay meaningful when switching license tabs.
+  const stageCounts: Record<StageTab, number> = {
+    'הכל':         pipelineFull.length,
+    'בנמל מקור':  pipelineFull.filter(v => v.status === 'בנמל מקור').length,
+    'בים':         pipelineFull.filter(v => v.status === 'בים').length,
+    'הגיע לארץ':  pipelineFull.filter(v => v.status === 'הגיע לארץ').length,
+  };
 
+  // Stats reflect the active scope so the cards stay consistent with the visible list.
   const stats = [
-    { label: 'סה"כ פעיל',       value: active.filter(v => v.status !== 'הגיע').length,                          color: 'text-gray-900',    iconBg: 'bg-gray-100',    Icon: Package,      iconColor: 'text-gray-600'   },
     { label: 'בדרך',             value: pipeline.length,                                                            color: 'text-blue-600',    iconBg: 'bg-blue-50',     Icon: Truck,        iconColor: 'text-blue-500'   },
     { label: 'ממתינים לניירת',   value: active.filter(v => v.status === 'שולם וממתין לניירת').length,             color: 'text-amber-500',   iconBg: 'bg-amber-50',    Icon: Clock,        iconColor: 'text-amber-500'  },
     { label: 'הגיעו',            value: active.filter(v => v.status === 'הגיע').length,                            color: 'text-emerald-600', iconBg: 'bg-emerald-50',  Icon: CheckCircle2, iconColor: 'text-emerald-500'},
-    { label: 'נמכרו',            value: vehicles.filter(v => v.status === 'נמכר').length,                         color: 'text-purple-600',  iconBg: 'bg-purple-50',   Icon: Tag,          iconColor: 'text-purple-500' },
+    { label: 'נמכרו',            value: scoped.filter(v => v.status === 'נמכר').length,                            color: 'text-purple-600',  iconBg: 'bg-purple-50',   Icon: Tag,          iconColor: 'text-purple-500' },
   ];
 
   return (
     <div className="min-h-screen bg-[#f0f2f7]">
       <header className="bg-white border-b border-gray-200 px-4 md:px-8 py-3 sticky top-0 z-10 shadow-sm">
         <div className="max-w-7xl mx-auto flex items-center justify-between gap-2">
-          <Image src="/logo.jpg" alt="A.P Trade Cars" width={100} height={40} className="object-contain flex-shrink-0" />
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <button onClick={() => setImporter('AP')} title="A.P Trade Cars"
+              className={`p-1 rounded-lg transition-all ${importer === 'AP' ? 'ring-2 ring-blue-500 bg-blue-50' : 'opacity-40 hover:opacity-70'}`}>
+              <Image src="/logo.jpg" alt="A.P Trade Cars" width={90} height={36} className="object-contain" />
+            </button>
+            <button onClick={() => setImporter('YOSEF')} title="יוסף נעים"
+              className={`px-3 py-1.5 rounded-lg transition-all border-2 leading-tight ${
+                importer === 'YOSEF'
+                  ? 'ring-2 ring-amber-500 bg-amber-50 border-amber-700 text-amber-900'
+                  : 'opacity-40 hover:opacity-70 border-gray-700 text-gray-800'
+              }`}>
+              <div className="font-black text-sm tracking-wide">יוסף נעים</div>
+              <div className="text-[9px] font-bold tracking-[0.25em] -mt-0.5">YOSEF NAIM</div>
+            </button>
+          </div>
           <div className="flex items-center gap-1.5">
             {!isMobile && syncResult && (
               <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-lg font-medium">{syncResult}</span>
@@ -351,7 +388,7 @@ export default function Dashboard() {
               <Calculator className="w-4 h-4 text-blue-500" />
               <span className="header-text">מחשבון</span>
             </Link>
-            <Link href="/vehicles/new" title="הוסף רכב"
+            <Link href={`/vehicles/new?importer=${importer}`} title="הוסף רכב"
               className="flex items-center gap-1.5 bg-blue-600 text-white px-3 py-2 rounded-xl hover:bg-blue-700 text-sm font-semibold shadow-sm">
               <Plus className="w-4 h-4" />
               <span className="header-text">הוסף רכב</span>
@@ -410,19 +447,44 @@ export default function Dashboard() {
           <>
             <SectionTable vehicles={waiting} title="📋 שולם וממתין לניירת" headerColor="bg-amber-50 text-amber-800" />
 
-            {(licenseTab === 'הכל' || licenseTab === 'זעיר') && (
-              <SectionTable
-                vehicles={licenseTab === 'הכל' ? zeir : pipeline.filter(v => v.license_type === 'זעיר' && matchSearch(v))}
-                title="🔵 בדרך — רשיון זעיר"
-                headerColor="bg-blue-50 text-blue-800"
-              />
+            {/* Stage filter chips — slice the in-transit list by shipping stage */}
+            {pipelineFull.length > 0 && (
+              <div className="flex items-center gap-1.5 flex-wrap mt-1 -mb-1">
+                <span className="text-xs text-gray-400 ml-1">שלב:</span>
+                {([
+                  { key: 'הכל',        emoji: '🚚', activeBg: 'bg-blue-600' },
+                  { key: 'בנמל מקור', emoji: '🏭', activeBg: 'bg-blue-500' },
+                  { key: 'בים',        emoji: '🌊', activeBg: 'bg-cyan-500' },
+                  { key: 'הגיע לארץ', emoji: '🇮🇱', activeBg: 'bg-amber-500' },
+                ] as Array<{ key: StageTab; emoji: string; activeBg: string }>).map(s => {
+                  const count = stageCounts[s.key];
+                  const isActive = stageTab === s.key;
+                  return (
+                    <button
+                      key={s.key}
+                      onClick={() => setStageTab(s.key)}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 ${
+                        isActive
+                          ? `${s.activeBg} text-white shadow-sm`
+                          : 'bg-white text-gray-600 border border-gray-200 hover:border-gray-300'
+                      }`}
+                    >
+                      <span>{s.emoji}</span>
+                      <span>{s.key}</span>
+                      <span className={`text-[10px] font-bold ${isActive ? 'text-white/80' : 'text-gray-400'}`}>
+                        {count}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
             )}
-            {(licenseTab === 'הכל' || licenseTab === 'עקיף') && (
-              <SectionTable
-                vehicles={licenseTab === 'הכל' ? akif : pipeline.filter(v => v.license_type === 'עקיף' && matchSearch(v))}
-                title="🟡 בדרך — רשיון עקיף"
-                headerColor="bg-amber-50 text-amber-800"
-              />
+
+            {licenseTab !== 'עקיף' && (
+              <SectionTable vehicles={zeir} title="🔵 בדרך — רשיון זעיר" headerColor="bg-blue-50 text-blue-800" />
+            )}
+            {licenseTab !== 'זעיר' && (
+              <SectionTable vehicles={akif} title="🟡 בדרך — רשיון עקיף" headerColor="bg-amber-50 text-amber-800" />
             )}
             {licenseTab === 'הכל' && (
               <SectionTable vehicles={noLicense} title="⚫ בדרך — ללא רשיון" headerColor="bg-gray-50 text-gray-700" />

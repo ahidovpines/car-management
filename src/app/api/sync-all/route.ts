@@ -8,17 +8,23 @@ const ISRAEL_PORTS = ['ashdod', 'haifa', 'israel'];
 function guessStatusFromTracking(tracking: Awaited<ReturnType<typeof fetchTracking>>): string | null {
   if (!tracking) return null;
 
-  // Completed = container returned empty = arrived and done
-  if (tracking.completed) return 'הגיע';
-
   const loc = tracking.location.toLowerCase();
   const status = tracking.status.toLowerCase();
 
-  // Container is in Israel
-  if (ISRAEL_PORTS.some(p => loc.includes(p))) {
-    if (status.includes('discharg') || status.includes('arrived') || status.includes('delivered') || status.includes('empty returned')) {
-      return 'הגיע לארץ';
-    }
+  // NOTE: 'הגיע' (= picked up by us) is INTENTIONALLY never set automatically.
+  // tracking.completed only means the carrier got the empty container back — it
+  // does NOT mean we physically picked the vehicle up from port. The user
+  // confirms that manually from the vehicle detail page.
+
+  // Container reached Israel — discharged or empty returned counts.
+  if (
+    tracking.completed ||
+    ISRAEL_PORTS.some(p => loc.includes(p)) ||
+    status.includes('discharg') ||
+    status.includes('arrived') ||
+    status.includes('delivered') ||
+    status.includes('empty returned')
+  ) {
     return 'הגיע לארץ';
   }
 
@@ -39,7 +45,9 @@ export async function POST() {
   try {
     const db = getDb();
     const vehicles = db.prepare(
-      "SELECT * FROM vehicles WHERE container_number IS NOT NULL AND container_number != '' AND status NOT IN ('הגיע', 'שולם וממתין לניירת')"
+      // Skip vehicles already past port: 'הגיע' = user picked up, 'נמכר' = sold.
+      // 'שולם וממתין לניירת' is pre-shipping so nothing to sync either.
+      "SELECT * FROM vehicles WHERE container_number IS NOT NULL AND container_number != '' AND status NOT IN ('הגיע', 'נמכר', 'שולם וממתין לניירת')"
     ).all() as Vehicle[];
 
     const results: { id: number; make: string; model: string; updated: string[] }[] = [];
