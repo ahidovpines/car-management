@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "node scripts/start-prod.mjs",
+    "start": "next start",
+    "start:local": "node scripts/start-prod.mjs",
     "lint": "eslint"
   },
   "dependencies": {
